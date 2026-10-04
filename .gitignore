@@ -1,0 +1,22 @@
+# Build output
+bin/
+obj/
+[Dd]ebug/
+[Rr]elease/
+x64/
+x86/
+*.user
+*.suo
+
+# Visual Studio / Rider
+.vs/
+.idea/
+*.userprefs
+
+# NuGet
+*.nupkg
+packages/
+
+# Test results
+[Tt]est[Rr]esults/
+*.trx
