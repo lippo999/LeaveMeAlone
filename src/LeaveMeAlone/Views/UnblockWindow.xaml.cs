@@ -35,6 +35,9 @@ public partial class UnblockWindow : Window
 
     private async void Steam_Click(object sender, RoutedEventArgs e) => await _viewModel.UnblockPresetAsync(UnblockPresets.Steam);
 
+    private async void SteamDownloads_Click(object sender, RoutedEventArgs e) =>
+        await _viewModel.UnblockPresetAsync(UnblockPresets.SteamDownloads);
+
     private async void DomainBox_KeyDown(object sender, KeyEventArgs e)
     {
         if (e.Key == Key.Enter) await _viewModel.DiagnoseAsync();

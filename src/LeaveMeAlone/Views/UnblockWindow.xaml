@@ -36,6 +36,9 @@
                     <Button Content="Quick: Steam" Click="Steam_Click" Style="{StaticResource BtnBase}" Margin="8,0,0,0"
                             ToolTip="Diagnose the Steam store/community domains and unblock the ones that are blocked"
                             IsEnabled="{Binding IsElevated}"/>
+                    <Button Content="Quick: Steam downloads" Click="SteamDownloads_Click" Style="{StaticResource BtnBase}" Margin="8,0,0,0"
+                            ToolTip="Diagnose the Steam content servers (*.steamcontent.com, HK / SG / JP) and unblock the ones that are blocked"
+                            IsEnabled="{Binding IsElevated}"/>
                 </StackPanel>
                 <TextBox x:Name="DomainBox" Text="{Binding DomainInput, UpdateSourceTrigger=PropertyChanged}"
                          KeyDown="DomainBox_KeyDown"
