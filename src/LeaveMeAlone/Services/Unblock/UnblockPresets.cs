@@ -1,6 +1,8 @@
 namespace LeaveMeAlone.Services.Unblock;
 
-public sealed record UnblockPreset(string Name, IReadOnlyList<string> Domains);
+/// <param name="Name">Short title shown on the Quick screen.</param>
+/// <param name="Description">One line telling the user what the switch fixes.</param>
+public sealed record UnblockPreset(string Name, string Description, IReadOnlyList<string> Domains);
 
 /// <summary>
 /// Domain sets for the "quick unblock" button. Each domain is still diagnosed first; only the ones
@@ -9,7 +11,8 @@ public sealed record UnblockPreset(string Name, IReadOnlyList<string> Domains);
 /// </summary>
 public static class UnblockPresets
 {
-    public static readonly UnblockPreset Steam = new("Steam (store + community)", new[]
+    public static readonly UnblockPreset Steam = new("Steam store & community",
+        "Store pages, login, profiles, workshop and images.", new[]
     {
         "store.steampowered.com",
         "steamcommunity.com",
@@ -29,7 +32,8 @@ public static class UnblockPresets
     /// the nearby cache regions plus the steampipe CDN front-ends. The ISP filters all of
     /// *.steamcontent.com; far regions (syd1, lax1, fra1, …) are omitted because Steam never picks them.
     /// </summary>
-    public static readonly UnblockPreset SteamDownloads = new("Steam downloads (content servers)",
+    public static readonly UnblockPreset SteamDownloads = new("Steam downloads",
+        "Game downloads and updates stuck at 0 B/s (content servers in HK, SG and JP).",
         new[]
         {
             "google2.cdn.steampipe.steamcontent.com",
@@ -41,6 +45,9 @@ public static class UnblockPresets
         .Concat(CacheHosts("sgp1", 10))
         .Concat(new[] { "cache2-tyo3.steamcontent.com", "cache10-tyo3.steamcontent.com" })
         .ToArray());
+
+    /// <summary>Every preset, in the order the Quick screen shows them.</summary>
+    public static readonly IReadOnlyList<UnblockPreset> All = new[] { Steam, SteamDownloads };
 
     private static IEnumerable<string> CacheHosts(string region, int count) =>
         Enumerable.Range(1, count).Select(i => $"cache{i}-{region}.steamcontent.com");

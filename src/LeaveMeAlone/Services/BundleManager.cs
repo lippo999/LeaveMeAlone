@@ -38,6 +38,28 @@ public sealed class BundleManager
         return bundle;
     }
 
+    /// <summary>
+    /// Creates a bundle that already holds <paramref name="targets"/> (used by the one-switch launcher block).
+    /// Rules are applied before anything is saved; if that fails, rules created so far are removed.
+    /// </summary>
+    public async Task<Bundle> CreateBundleWithTargetsAsync(
+        string name, IReadOnlyList<FirewallTarget> targets, bool enabled, CancellationToken ct = default)
+    {
+        var bundle = new Bundle { Name = name.Trim(), Enabled = enabled, Targets = targets.ToList() };
+        try
+        {
+            await _firewall.ApplyBundleAsync(bundle, ct).ConfigureAwait(false);
+        }
+        catch
+        {
+            await TryRemoveRulesAsync(bundle.Id).ConfigureAwait(false);
+            throw;
+        }
+        _bundles = Append(_bundles, bundle);
+        await _store.SaveAsync(_bundles, ct).ConfigureAwait(false);
+        return bundle;
+    }
+
     public async Task<Bundle> RenameBundleAsync(string bundleId, string name, CancellationToken ct = default)
     {
         var updated = Get(bundleId) with { Name = name.Trim() };
@@ -114,6 +136,18 @@ public sealed class BundleManager
         Id = Guid.NewGuid().ToString("N"),
         Targets = bundle.Targets.Select(t => t with { Id = Guid.NewGuid().ToString("N") }).ToList(),
     };
+
+    private async Task TryRemoveRulesAsync(string bundleId)
+    {
+        try
+        {
+            await _firewall.RemoveBundleAsync(bundleId).ConfigureAwait(false);
+        }
+        catch (FirewallException)
+        {
+            // The original failure is what gets reported.
+        }
+    }
 
     private Bundle Get(string bundleId) =>
         _bundles.FirstOrDefault(b => b.Id == bundleId)

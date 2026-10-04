@@ -43,7 +43,34 @@ public interface IProcessRunner
 
 public sealed class ProcessRunner : IProcessRunner
 {
+    private const int MaxLoggedChars = 2000;
+    private readonly AppLog? _log;
+
+    /// <param name="log">When set, every command is logged (exit code + arguments; stderr on failure).</param>
+    public ProcessRunner(AppLog? log = null) => _log = log;
+
     public async Task<ProcessResult> RunAsync(string fileName, string arguments, CancellationToken ct = default)
+    {
+        var started = DateTimeOffset.Now;
+        var result = await RunCoreAsync(fileName, arguments, ct).ConfigureAwait(false);
+        Log(fileName, arguments, result, DateTimeOffset.Now - started);
+        return result;
+    }
+
+    private void Log(string fileName, string arguments, ProcessResult result, TimeSpan took)
+    {
+        if (_log is null) return;
+        var ok = result.ExitCode == 0;
+        var details = $"args: {Truncate(arguments)}" +
+                      (ok || string.IsNullOrWhiteSpace(result.StdErr) ? "" : $"\nstderr: {Truncate(result.StdErr.Trim())}");
+        _log.Write(ok ? LogLevel.Debug : LogLevel.Warn, "System",
+            $"{fileName} exited {result.ExitCode} ({took.TotalMilliseconds:0} ms)", details);
+    }
+
+    private static string Truncate(string text) =>
+        text.Length <= MaxLoggedChars ? text : text[..MaxLoggedChars] + "…";
+
+    private static async Task<ProcessResult> RunCoreAsync(string fileName, string arguments, CancellationToken ct)
     {
         var psi = new ProcessStartInfo
         {

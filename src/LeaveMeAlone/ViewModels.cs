@@ -109,13 +109,67 @@ public sealed class BundleViewModel : ObservableObject
     }
 }
 
+/// <summary>One switch on the Quick block screen (a detected launcher or a user bundle).</summary>
+public sealed class QuickSwitchViewModel : ObservableObject
+{
+    private QuickBlockItem _model;
+
+    public QuickSwitchViewModel(QuickBlockItem model) => _model = model;
+
+    public QuickBlockItem Model => _model;
+    public string Title => _model.Title;
+    public string Initial => _model.Title.Length > 0 ? _model.Title[..1].ToUpperInvariant() : "?";
+    public string KindLabel => _model.Launcher != null ? "LAUNCHER" : "BUNDLE";
+    public bool IsOn => _model.IsOn;
+    public bool CanCustomize => _model.Bundle != null;
+
+    public string StatusText
+    {
+        get
+        {
+            var count = _model.Bundle?.Targets.Count ?? _model.Launcher?.ExistingPaths.Count ?? 0;
+            var what = _model.Launcher != null ? $"{count} program(s)" : $"{count} rule(s)";
+            if (count == 0) return IsOn ? "On · nothing to block yet" : "Off · nothing to block yet";
+            return IsOn ? $"Offline · {what} blocked" : $"Online · {what}";
+        }
+    }
+
+    /// <summary>Always raises change events so a switch the user flipped snaps back if the change failed.</summary>
+    public void Update(QuickBlockItem model)
+    {
+        _model = model;
+        OnPropertyChanged(nameof(IsOn));
+        OnPropertyChanged(nameof(StatusText));
+        OnPropertyChanged(nameof(CanCustomize));
+    }
+}
+
 /// <summary>Status line + busy flag + error-to-status guard shared by the window view models.</summary>
 public abstract class GuardedViewModel : ObservableObject
 {
+    private readonly AppLog? _log;
+    private readonly string _logSource;
     private string _statusMessage = "";
     private bool _busy;
+    private bool _reportingError; // the error is logged with details already; skip the plain Info copy
 
-    public string StatusMessage { get => _statusMessage; set => Set(ref _statusMessage, value); }
+    /// <param name="log">Every status line is also written here (errors with full exception details).</param>
+    protected GuardedViewModel(AppLog? log, string logSource)
+    {
+        _log = log;
+        _logSource = logSource;
+    }
+
+    public string StatusMessage
+    {
+        get => _statusMessage;
+        set
+        {
+            if (Set(ref _statusMessage, value) && !_reportingError && !string.IsNullOrWhiteSpace(value))
+                _log?.Info(_logSource, value);
+        }
+    }
+
     public bool Busy { get => _busy; set => Set(ref _busy, value); }
 
     protected async Task RunGuardedAsync(Func<Task> action, string errorTitle)
@@ -128,7 +182,10 @@ public abstract class GuardedViewModel : ObservableObject
         }
         catch (Exception ex)
         {
-            StatusMessage = $"{errorTitle}: {ex.Message}";
+            _log?.Error(_logSource, $"{errorTitle}: {ex.Message}", ex.ToString());
+            _reportingError = true;
+            try { StatusMessage = $"{errorTitle}: {ex.Message}"; }
+            finally { _reportingError = false; }
         }
         finally
         {
@@ -140,16 +197,38 @@ public abstract class GuardedViewModel : ObservableObject
 public sealed class MainViewModel : GuardedViewModel
 {
     private readonly BundleManager _manager;
+    private readonly Func<IReadOnlyList<DetectedLauncher>> _detectLaunchers;
+    private IReadOnlyList<DetectedLauncher> _launchers = Array.Empty<DetectedLauncher>();
     private BundleViewModel? _selectedBundle;
+    private bool _loaded;
 
-    public MainViewModel(BundleManager manager, bool isElevated)
+    public MainViewModel(BundleManager manager, bool isElevated,
+        Func<IReadOnlyList<DetectedLauncher>>? detectLaunchers = null, AppLog? log = null)
+        : base(log, "Block")
     {
         _manager = manager;
         IsElevated = isElevated;
+        _detectLaunchers = detectLaunchers ?? CommonLaunchers.Detect;
     }
 
     public bool IsElevated { get; }
     public ObservableCollection<BundleViewModel> Bundles { get; } = new();
+
+    /// <summary>The Quick screen: one switch per detected launcher, then the user's other bundles.</summary>
+    public ObservableCollection<QuickSwitchViewModel> QuickItems { get; } = new();
+    public bool HasQuickItems => QuickItems.Count > 0;
+
+    /// <summary>"Nothing found" is only true once loading finished — not while the list is still empty.</summary>
+    public bool ShowQuickEmpty => _loaded && QuickItems.Count == 0;
+
+    public int BlockingCount => _manager.Bundles.Count(b => b.Enabled);
+    public bool AnyBlocking => BlockingCount > 0;
+    public string Summary => BlockingCount switch
+    {
+        0 => "Nothing blocked",
+        1 => "1 blocking now",
+        var n => $"{n} blocking now",
+    };
 
     public BundleViewModel? SelectedBundle
     {
@@ -163,21 +242,67 @@ public sealed class MainViewModel : GuardedViewModel
     {
         await RunGuardedAsync(async () =>
         {
+            _launchers = _detectLaunchers();
             var bundles = await _manager.InitializeAsync();
             Bundles.Clear();
             foreach (var bundle in bundles)
                 Bundles.Add(new BundleViewModel(bundle));
 
             StatusMessage = IsElevated
-                ? $"{Bundles.Count} bundle(s) loaded."
+                ? "Ready. Flip a switch to take something offline."
                 : "Running without administrator rights — changes are disabled.";
         }, "Failed to load bundles");
+        _loaded = true;
+        RefreshQuick();
+    }
+
+    /// <summary>Quick-screen switch: blocks/unblocks a launcher (creating its bundle the first time) or a bundle.</summary>
+    public async Task QuickToggleAsync(QuickSwitchViewModel item, bool on)
+    {
+        await RunGuardedAsync(async () =>
+        {
+            var model = item.Model;
+            if (model.Bundle is { } existing)
+            {
+                var bundle = await _manager.SetEnabledAsync(existing.Id, on);
+                Bundles.FirstOrDefault(b => b.Id == bundle.Id)?.Update(bundle);
+            }
+            else if (on && model.Launcher is { } launcher)
+            {
+                var bundle = await _manager.CreateBundleWithTargetsAsync(
+                    launcher.Name, QuickBlock.TargetsFor(launcher), enabled: true);
+                Bundles.Add(new BundleViewModel(bundle));
+            }
+            StatusMessage = on ? $"{item.Title} is offline — blocked by the firewall." : $"{item.Title} is back online.";
+        }, $"Couldn't change {item.Title}");
+        RefreshQuick();
+    }
+
+    /// <summary>Rebuilds the Quick switches and sidebar summary from the manager's bundles.</summary>
+    public void RefreshQuick()
+    {
+        var items = QuickBlock.Build(_launchers, _manager.Bundles);
+        if (items.Select(i => i.Title).SequenceEqual(QuickItems.Select(q => q.Title)))
+        {
+            // Same rows: update in place so switches animate instead of being re-created.
+            for (var i = 0; i < items.Count; i++) QuickItems[i].Update(items[i]);
+        }
+        else
+        {
+            QuickItems.Clear();
+            foreach (var item in items) QuickItems.Add(new QuickSwitchViewModel(item));
+        }
+        OnPropertyChanged(nameof(HasQuickItems));
+        OnPropertyChanged(nameof(ShowQuickEmpty));
+        OnPropertyChanged(nameof(BlockingCount));
+        OnPropertyChanged(nameof(AnyBlocking));
+        OnPropertyChanged(nameof(Summary));
     }
 
     public async Task<BundleViewModel?> CreateBundleAsync(string name)
     {
         BundleViewModel? created = null;
-        await RunGuardedAsync(async () =>
+        await Mutate(async () =>
         {
             var bundle = await _manager.CreateBundleAsync(name);
             created = new BundleViewModel(bundle);
@@ -203,7 +328,7 @@ public sealed class MainViewModel : GuardedViewModel
         StatusMessage = "Bundle deleted.";
     }, "Failed to delete bundle");
 
-    public Task ToggleAsync(BundleViewModel vm, bool enabled) => RunGuardedAsync(async () =>
+    public Task ToggleAsync(BundleViewModel vm, bool enabled) => Mutate(async () =>
     {
         var bundle = await _manager.SetEnabledAsync(vm.Id, enabled);
         vm.Update(bundle);
@@ -245,7 +370,7 @@ public sealed class MainViewModel : GuardedViewModel
         StatusMessage = $"Exported {Bundles.Count} bundle(s).";
     }, "Failed to export");
 
-    public Task ImportAsync(string path) => RunGuardedAsync(async () =>
+    public Task ImportAsync(string path) => Mutate(async () =>
     {
         var count = await _manager.ImportAsync(path);
         Bundles.Clear();
@@ -259,6 +384,12 @@ public sealed class MainViewModel : GuardedViewModel
     {
         var vm = SelectedBundle;
         if (vm == null) return;
-        await RunGuardedAsync(() => action(vm), errorTitle);
+        await Mutate(() => action(vm), errorTitle);
+    }
+
+    private async Task Mutate(Func<Task> action, string errorTitle)
+    {
+        await RunGuardedAsync(action, errorTitle);
+        RefreshQuick();
     }
 }

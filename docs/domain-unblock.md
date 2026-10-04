@@ -4,7 +4,7 @@ Tài liệu mô tả tính năng **Unblock domains** của LeaveMeAlone: nó gi�
 hoạt động ra sao, mỗi thành phần nằm ở đâu trong code, và những giới hạn cần biết.
 
 - Mã nguồn: `src/LeaveMeAlone/Services/Unblock/`
-- Giao diện: `src/LeaveMeAlone/Views/UnblockWindow.xaml(.cs)`, `UnblockViewModels.cs`
+- Giao diện: trang Unblock `src/LeaveMeAlone/Views/UnblockView.xaml(.cs)` (tab Quick: công tắc preset; tab Custom: kiểm tra / mở chặn tên miền bất kỳ), `UnblockViewModels.cs`
 - Test: `tests/LeaveMeAlone.Tests/Unblock/`
 
 ---
@@ -62,7 +62,7 @@ App chuẩn hoá thành tên miền ASCII viết thường (`DomainName.Normaliz
 
 ```mermaid
 flowchart LR
-    UI["UnblockWindow<br/>UnblockViewModel"] --> M["UnblockManager"]
+    UI["UnblockView<br/>UnblockViewModel"] --> M["UnblockManager"]
     M --> D["DomainDiagnoser"]
     M --> H["IHostsFile<br/>WindowsHostsFile"]
     M --> R["IRelayHost<br/>SniRelayHost"]

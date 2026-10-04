@@ -50,8 +50,14 @@ Install SDK if needed: `winget install Microsoft.DotNet.SDK.8`.
   (`New-/Enable-/Disable-/Remove-NetFirewallRule`). `IProcessRunner` is the injected shell seam.
 - **`JsonBundleStore`** (Services): persistence at `%APPDATA%\LeaveMeAlone\bundles.json`
   (atomic write; enums as strings; corrupt file → backed up + empty).
-- **UI:** `ViewModels.cs` (MVVM), `Views/MainWindow.xaml(.cs)`, `Views/Dialogs.cs` (code-built
-  modals), `Views/TrayIcon.cs` (WinForms `NotifyIcon`). Theme lives in `App.xaml`.
+- **UI:** one `MainWindow` shell (sidebar nav) hosting three pages: `BlockView`, `UnblockView`
+  (the two main features, equal peers, each with a Quick tab of switches and a Custom tab with the
+  full editor) and `LogView`. `ViewModels.cs` / `UnblockViewModels.cs` / `LogViewModels.cs` (MVVM),
+  `Views/Dialogs.cs` (code-built modals), `Views/TrayIcon.cs` (WinForms `NotifyIcon`). Theme tokens
+  + control styles live in `App.xaml`; each page re-declares `Accent`/`AccentSoft`/`AccentLine`
+  (Ember = Block, Signal = Unblock, neutral = Logs) and shared styles read them via DynamicResource.
+- **`AppLog`** (Services): in-memory ring + daily files in `%APPDATA%\LeaveMeAlone\logs`. View
+  models log every `StatusMessage` (errors with details); `ProcessRunner` logs every command.
 - **`Platform.cs`** (Services): elevation helpers + `StartupRegistration` (HKCU Run key).
 
 ## Conventions
@@ -76,6 +82,8 @@ src/LeaveMeAlone/
   Services/BundleManager.cs          orchestration + reconciliation + import/export
   Services/CommonLaunchers.cs        quick-add launcher presets (detected by install path)
   Services/Platform.cs               elevation + StartupRegistration
+  Services/QuickBlock.cs             maps detected launchers ↔ bundles for the Quick block switches
+  Services/AppLog.cs                 activity log (memory + daily files)
   Services/JsonFile.cs               shared atomic JSON load/save
   Services/Unblock/                  domain unblocking (ISP DNS poisoning / SNI filtering) —
                                      design doc: docs/domain-unblock.md
@@ -87,9 +95,15 @@ src/LeaveMeAlone/
     HostsFile.cs                       managed hosts block (exact-restore) + Windows hosts IO + flushdns
     SniRelay.cs                        loopback relay (127.77.0.x:443/80) used for SNI-filtered domains
     UnblockManager.cs / UnblockStore.cs  orchestration (relay → hosts → store, with rollback) + unblocked.json
-  UnblockViewModels.cs               UnblockViewModel + row view-models
-  Views/UnblockWindow.xaml(.cs)      unblock UI (diagnose / rank / unblock / status / remove)
-  Views/MainWindow.xaml(.cs)         main UI
+  UnblockViewModels.cs               UnblockViewModel + preset/row view-models
+  LogViewModels.cs                   LogViewModel (live, filterable view over AppLog)
+  Views/MainWindow.xaml(.cs)         shell: sidebar nav + page host, autostart, admin state
+  Views/BlockView.xaml(.cs)          Block page (Quick switches / Custom bundle editor)
+  Views/UnblockView.xaml(.cs)        Unblock page (Quick presets / Custom diagnose-unblock-remove)
+  Views/LogView.xaml(.cs)            Logs page
+  Views/BusyBar.xaml(.cs)            indeterminate progress line bound to Busy
+  Views/WindowTheme.cs               dark caption bar (DWM)
+  Assets/app.ico, app.png            app icon (regenerate: tools/make_icon.ps1 -Source <photo>)
   Views/Dialogs.cs                   name / IP / launcher-picker modals
   Views/TrayIcon.cs                  system-tray quick-toggle
 tests/LeaveMeAlone.Tests/   xUnit: Domain, BundleStore, BundleManager, FakeFirewallService,

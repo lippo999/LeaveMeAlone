@@ -22,7 +22,7 @@ public sealed class TrayIcon : IDisposable
 
         _icon = new NotifyIcon
         {
-            Icon = SystemIcons.Shield,
+            Icon = LoadAppIcon(),
             Visible = true,
             Text = "LeaveMeAlone",
             ContextMenuStrip = new ContextMenuStrip(),
@@ -71,6 +71,15 @@ public sealed class TrayIcon : IDisposable
         menu.Items.Add(exit);
     }
 
+    // The app icon is a WPF resource (Assets/app.ico); fall back to a stock icon if it can't be read.
+    private static Icon LoadAppIcon()
+    {
+        var resource = System.Windows.Application.GetResourceStream(new Uri("pack://application:,,,/Assets/app.ico"));
+        if (resource is null) return SystemIcons.Shield;
+        using var stream = resource.Stream;
+        return new Icon(stream, SystemInformation.SmallIconSize);
+    }
+
     private void ShowWindow()
     {
         _window.Show();
@@ -81,6 +90,7 @@ public sealed class TrayIcon : IDisposable
     public void Dispose()
     {
         _icon.Visible = false;
+        _icon.Icon?.Dispose();
         _icon.Dispose();
     }
 }

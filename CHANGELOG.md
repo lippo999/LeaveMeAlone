@@ -6,12 +6,22 @@ All notable changes to this project are documented here. Format loosely follows
 ## [Unreleased]
 
 ### Added
+- **New UI**: one window, sidebar with **Block** and **Unblock** as equal pages (each shows its live
+  status), every page split into **Quick** (one switch per launcher / Steam preset) and **Custom**
+  (full bundle editor / check-and-unblock any domain). Quick block creates the launcher's bundle on
+  first use; "Customize" jumps to it. New palette (Ember for Block, Signal teal for Unblock), dark
+  caption bar, slim scrollbars, animated switches.
+- **App icon** (`Assets/app.ico` + `app.png`, built by `tools/make_icon.ps1`) for the exe, window,
+  sidebar and tray — previously the tray fell back to a stock shield and nothing else had one.
+- **Logs** page + `AppLog`: actions, results, errors (with exception details) and every system
+  command, in memory and in daily files under `%APPDATA%\LeaveMeAlone\logs`; problems filter, copy,
+  open folder. Unhandled exceptions are logged.
 - **Unblock domains** (no VPN): diagnose a domain (normal / DNS poisoning / SNI filtering / other),
   rank its real IPs by speed, and unblock it — hosts-file pin for DNS blocking, local loopback
   relay that splits the TLS ClientHello into two records for SNI filtering. Removal restores the
   hosts file byte-for-byte; relays stop and their hosts lines are removed on exit. "Quick: Steam"
   preset. Verified live against a Vietnamese ISP (direct: reset; via relay: HTTP 200).
-- `Services/Unblock/*`, `UnblockViewModels.cs`, `Views/UnblockWindow.xaml(.cs)`, and tests
+- `Services/Unblock/*`, `UnblockViewModels.cs`, the unblock UI, and tests
   (DNS wire parsing, bogon detection, DoH JSON, fragmenter, hosts block, diagnoser, manager,
   and loopback TLS integration tests for the relay).
 

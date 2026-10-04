@@ -1,214 +1,168 @@
 <Window x:Class="LeaveMeAlone.Views.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="LeaveMeAlone" Height="640" Width="1000"
-        MinHeight="480" MinWidth="760"
+        xmlns:local="clr-namespace:LeaveMeAlone.Views"
+        Title="LeaveMeAlone" Height="720" Width="1100"
+        MinHeight="560" MinWidth="900"
+        Icon="/Assets/app.ico"
         Background="{StaticResource Bg}"
+        FontFamily="{StaticResource FontUi}"
         WindowStartupLocation="CenterScreen"
         TextOptions.TextFormattingMode="Ideal">
 
-    <Grid Margin="18">
-        <Grid.RowDefinitions>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="*"/>
-            <RowDefinition Height="Auto"/>
-        </Grid.RowDefinitions>
+    <Grid>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="256"/>
+            <ColumnDefinition Width="*"/>
+        </Grid.ColumnDefinitions>
 
-        <!-- Header -->
-        <DockPanel Grid.Row="0" Margin="2,0,2,14" LastChildFill="False">
-            <StackPanel DockPanel.Dock="Left">
-                <TextBlock Text="LeaveMeAlone" Style="{StaticResource H1}"/>
-                <TextBlock Text="Unblock what your ISP filters. Block what you want offline. One switch each."
-                           Style="{StaticResource Muted}" Margin="0,3,0,0"/>
-            </StackPanel>
-            <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
-                <CheckBox x:Name="StartupCheck" Content="Start with Windows"
-                          Foreground="{StaticResource TextMuted}" VerticalAlignment="Center" Margin="0,0,14,0"
-                          Checked="Startup_Changed" Unchecked="Startup_Changed"/>
-                <Button Content="Unblock domains" Click="Unblock_Click" Style="{StaticResource BtnPrimary}" Margin="0,0,8,0"
-                        ToolTip="Reach ISP-blocked domains (DNS / SNI filtering) without a VPN"/>
-                <Button Content="Import" Click="Import_Click" Style="{StaticResource BtnBase}" Margin="0,0,8,0"/>
-                <Button Content="Export" Click="Export_Click" Style="{StaticResource BtnBase}"/>
-            </StackPanel>
-        </DockPanel>
+        <!-- ================= Sidebar ================= -->
+        <Border Grid.Column="0" Background="{StaticResource Sidebar}" BorderBrush="{StaticResource Line}" BorderThickness="0,0,1,0">
+            <DockPanel Margin="18,24,18,18">
 
-        <!-- Elevation banner (shown only when not admin) -->
-        <Border x:Name="BannerPanel" Grid.Row="1" Margin="0,0,0,12" CornerRadius="8"
-                Background="#3A2A15" BorderBrush="{StaticResource Warn}" BorderThickness="1" Padding="12,8">
-            <TextBlock Foreground="{StaticResource Warn}" TextWrapping="Wrap"
-                       Text="Not running as administrator — creating and toggling rules is disabled. Restart the app and choose 'Yes' at the prompt."/>
-        </Border>
-
-        <!-- Body -->
-        <Grid Grid.Row="2">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="320"/>
-                <ColumnDefinition Width="16"/>
-                <ColumnDefinition Width="*"/>
-            </Grid.ColumnDefinitions>
-
-            <!-- Left: bundle list -->
-            <Border Grid.Column="0" Style="{StaticResource Card}">
-                <Grid Margin="12">
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="*"/>
-                        <RowDefinition Height="Auto"/>
-                    </Grid.RowDefinitions>
-
-                    <DockPanel Grid.Row="0" Margin="2,0,2,10">
-                        <TextBlock Text="Bundles" Style="{StaticResource H2}" VerticalAlignment="Center"/>
-                        <Button DockPanel.Dock="Right" Content="+ New" Click="NewBundle_Click"
-                                Style="{StaticResource BtnPrimary}" HorizontalAlignment="Right"
-                                IsEnabled="{Binding IsElevated}"/>
-                    </DockPanel>
-
-                    <ListBox x:Name="BundlesList" Grid.Row="1" Background="Transparent" BorderThickness="0"
-                             ScrollViewer.HorizontalScrollBarVisibility="Disabled"
-                             SelectionChanged="BundlesList_SelectionChanged"
-                             HorizontalContentAlignment="Stretch">
-                        <ListBox.ItemContainerStyle>
-                            <Style TargetType="ListBoxItem">
-                                <Setter Property="Padding" Value="0"/>
-                                <Setter Property="Margin" Value="0,3"/>
-                                <Setter Property="Template">
-                                    <Setter.Value>
-                                        <ControlTemplate TargetType="ListBoxItem">
-                                            <Border x:Name="row" CornerRadius="8" Padding="10,8"
-                                                    Background="{StaticResource SurfaceAlt}"
-                                                    BorderBrush="{StaticResource Line}" BorderThickness="1">
-                                                <ContentPresenter/>
-                                            </Border>
-                                            <ControlTemplate.Triggers>
-                                                <Trigger Property="IsSelected" Value="True">
-                                                    <Setter TargetName="row" Property="BorderBrush" Value="{StaticResource Accent}"/>
-                                                </Trigger>
-                                                <Trigger Property="IsMouseOver" Value="True">
-                                                    <Setter TargetName="row" Property="Background" Value="{StaticResource Line}"/>
-                                                </Trigger>
-                                            </ControlTemplate.Triggers>
-                                        </ControlTemplate>
-                                    </Setter.Value>
-                                </Setter>
-                            </Style>
-                        </ListBox.ItemContainerStyle>
-                        <ListBox.ItemTemplate>
-                            <DataTemplate>
-                                <DockPanel LastChildFill="True">
-                                    <ToggleButton DockPanel.Dock="Right" Style="{StaticResource Switch}"
-                                                  VerticalAlignment="Center"
-                                                  IsChecked="{Binding Enabled, Mode=OneWay}"
-                                                  Click="Toggle_Click"
-                                                  IsEnabled="{Binding DataContext.IsElevated, RelativeSource={RelativeSource AncestorType=Window}}"/>
-                                    <StackPanel>
-                                        <TextBlock Text="{Binding Name}" Style="{StaticResource H2}" TextTrimming="CharacterEllipsis"/>
-                                        <TextBlock Text="{Binding StatusText}" Style="{StaticResource Muted}" Margin="0,2,0,0"/>
-                                    </StackPanel>
-                                </DockPanel>
-                            </DataTemplate>
-                        </ListBox.ItemTemplate>
-                    </ListBox>
-
-                    <TextBlock Grid.Row="2" Style="{StaticResource Muted}" Margin="2,10,2,0" TextWrapping="Wrap"
-                               Text="Tip: block a launcher's program to force it offline; add an IP to block a specific server."/>
-                </Grid>
-            </Border>
-
-            <!-- Right: detail -->
-            <Grid Grid.Column="2">
-                <!-- Empty state -->
-                <Border x:Name="EmptyPanel" Style="{StaticResource Card}">
-                    <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
-                        <TextBlock Text="No bundle selected" Style="{StaticResource H2}" HorizontalAlignment="Center"/>
-                        <TextBlock Text="Create a bundle, then add the programs or servers to block."
-                                   Style="{StaticResource Muted}" Margin="0,6,0,0" HorizontalAlignment="Center"/>
+                <!-- Brand -->
+                <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="6,0,0,0">
+                    <Image Source="/Assets/app.png" Width="36" Height="36" RenderOptions.BitmapScalingMode="HighQuality"/>
+                    <StackPanel Margin="12,0,0,0" VerticalAlignment="Center">
+                        <TextBlock Text="LeaveMeAlone" Style="{StaticResource H2}" FontSize="16"/>
+                        <TextBlock Text="your network, your rules" Style="{StaticResource Muted}" FontSize="11"
+                                   Foreground="{StaticResource TextFaint}" Margin="0,1,0,0"/>
                     </StackPanel>
-                </Border>
+                </StackPanel>
 
-                <!-- Detail (DataContext set to the selected BundleViewModel in code-behind) -->
-                <Border x:Name="DetailPanel" Style="{StaticResource Card}" Visibility="Collapsed">
-                    <Grid Margin="16">
-                        <Grid.RowDefinitions>
-                            <RowDefinition Height="Auto"/>
-                            <RowDefinition Height="Auto"/>
-                            <RowDefinition Height="*"/>
-                        </Grid.RowDefinitions>
-
-                        <DockPanel Grid.Row="0">
-                            <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
-                                <Button Content="Rename" Click="Rename_Click" Style="{StaticResource BtnBase}"
-                                        Margin="0,0,8,0"
-                                        IsEnabled="{Binding DataContext.IsElevated, RelativeSource={RelativeSource AncestorType=Window}}"/>
-                                <Button Content="Delete" Click="Delete_Click" Style="{StaticResource BtnDanger}"
-                                        IsEnabled="{Binding DataContext.IsElevated, RelativeSource={RelativeSource AncestorType=Window}}"/>
-                            </StackPanel>
-                            <StackPanel VerticalAlignment="Center">
-                                <TextBlock Text="{Binding Name}" Style="{StaticResource H1}" TextTrimming="CharacterEllipsis"/>
-                                <TextBlock Text="{Binding StatusText}" Style="{StaticResource Muted}" Margin="0,2,0,0"/>
+                <!-- Footer: autostart + admin state -->
+                <StackPanel DockPanel.Dock="Bottom">
+                    <Border CornerRadius="12" Padding="14,12" Background="{StaticResource Surface}"
+                            BorderBrush="{StaticResource Line}" BorderThickness="1">
+                        <DockPanel>
+                            <ToggleButton x:Name="StartupSwitch" DockPanel.Dock="Right" Style="{StaticResource Switch}"
+                                          VerticalAlignment="Center" Click="Startup_Click"
+                                          AutomationProperties.Name="Start with Windows"/>
+                            <StackPanel Margin="0,0,10,0">
+                                <TextBlock Text="Start with Windows" Foreground="{StaticResource Text}" FontSize="13"/>
+                                <TextBlock Text="Keeps relays running" Style="{StaticResource Muted}" FontSize="11" Margin="0,2,0,0"/>
                             </StackPanel>
                         </DockPanel>
+                    </Border>
 
-                        <WrapPanel Grid.Row="1" Margin="0,14,0,10">
-                            <Button Content="+ Add program" Click="AddProgram_Click" Style="{StaticResource BtnBase}" Margin="0,0,8,8"
-                                    IsEnabled="{Binding DataContext.IsElevated, RelativeSource={RelativeSource AncestorType=Window}}"/>
-                            <Button Content="+ Add IP / server" Click="AddIp_Click" Style="{StaticResource BtnBase}" Margin="0,0,8,8"
-                                    IsEnabled="{Binding DataContext.IsElevated, RelativeSource={RelativeSource AncestorType=Window}}"/>
-                            <Button Content="+ Common launcher" Click="AddCommon_Click" Style="{StaticResource BtnBase}" Margin="0,0,8,8"
-                                    IsEnabled="{Binding DataContext.IsElevated, RelativeSource={RelativeSource AncestorType=Window}}"/>
-                            <Button Content="Verify live rules" Click="Verify_Click" Style="{StaticResource BtnBase}" Margin="0,0,8,8"
-                                    IsEnabled="{Binding DataContext.IsElevated, RelativeSource={RelativeSource AncestorType=Window}}"/>
-                        </WrapPanel>
+                    <StackPanel Orientation="Horizontal" Margin="8,14,0,0">
+                        <Ellipse x:Name="AdminDot" Width="7" Height="7" VerticalAlignment="Center"/>
+                        <TextBlock x:Name="AdminText" Style="{StaticResource Muted}" FontSize="11" Margin="8,0,0,0"/>
+                    </StackPanel>
+                </StackPanel>
 
-                        <ListBox Grid.Row="2" ItemsSource="{Binding Targets}" Background="Transparent" BorderThickness="0"
-                                 HorizontalContentAlignment="Stretch"
-                                 ScrollViewer.HorizontalScrollBarVisibility="Disabled">
-                            <ListBox.ItemContainerStyle>
-                                <Style TargetType="ListBoxItem">
-                                    <Setter Property="Margin" Value="0,3"/>
-                                    <Setter Property="Padding" Value="0"/>
-                                    <Setter Property="Focusable" Value="False"/>
-                                    <Setter Property="Template">
-                                        <Setter.Value>
-                                            <ControlTemplate TargetType="ListBoxItem">
-                                                <Border CornerRadius="8" Padding="12,10" Background="{StaticResource SurfaceAlt}"
-                                                        BorderBrush="{StaticResource Line}" BorderThickness="1">
-                                                    <ContentPresenter/>
-                                                </Border>
-                                            </ControlTemplate>
-                                        </Setter.Value>
-                                    </Setter>
-                                </Style>
-                            </ListBox.ItemContainerStyle>
-                            <ListBox.ItemTemplate>
-                                <DataTemplate>
-                                    <DockPanel LastChildFill="True">
-                                        <Button DockPanel.Dock="Right" Content="Remove" Click="RemoveTarget_Click"
-                                                Style="{StaticResource BtnDanger}" VerticalAlignment="Center"
-                                                IsEnabled="{Binding DataContext.IsElevated, RelativeSource={RelativeSource AncestorType=Window}}"/>
-                                        <Border DockPanel.Dock="Left" CornerRadius="4" Background="{StaticResource AccentSoft}"
-                                                Padding="6,2" VerticalAlignment="Center" Margin="0,0,10,0">
-                                            <TextBlock Text="{Binding TypeLabel}" Foreground="{StaticResource Accent}" FontSize="10"/>
-                                        </Border>
-                                        <StackPanel VerticalAlignment="Center">
-                                            <TextBlock Text="{Binding Title}" Foreground="{StaticResource Text}" FontSize="13"
-                                                       TextTrimming="CharacterEllipsis"/>
-                                            <TextBlock Text="{Binding Detail}" Style="{StaticResource Muted}" Margin="0,2,0,0"
-                                                       TextTrimming="CharacterEllipsis"/>
-                                        </StackPanel>
-                                    </DockPanel>
-                                </DataTemplate>
-                            </ListBox.ItemTemplate>
-                        </ListBox>
-                    </Grid>
-                </Border>
-            </Grid>
-        </Grid>
+                <!-- Navigation: the two features, side by side as equals -->
+                <StackPanel Margin="0,34,0,0">
+                    <TextBlock Text="TOOLS" Style="{StaticResource Eyebrow}" Foreground="{StaticResource TextFaint}" Margin="8,0,0,10"/>
 
-        <!-- Status bar -->
-        <Border Grid.Row="3" Margin="0,12,0,0" Padding="12,7" CornerRadius="8"
-                Background="{StaticResource Surface}" BorderBrush="{StaticResource Line}" BorderThickness="1">
-            <TextBlock Text="{Binding StatusMessage}" Style="{StaticResource Muted}" TextTrimming="CharacterEllipsis"/>
+                    <RadioButton x:Name="NavBlock" GroupName="Nav" Style="{StaticResource NavItem}" Tag="{StaticResource Ember}"
+                                 IsChecked="True" Checked="Nav_Checked" AutomationProperties.Name="Block">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <Path Width="18" Height="18" Stretch="Uniform" StrokeThickness="1.8" VerticalAlignment="Center"
+                                  Stroke="{StaticResource Ember}" StrokeStartLineCap="Round" StrokeEndLineCap="Round"
+                                  Data="M9,2 A7,7 0 1 1 8.99,2 Z M4.1,4.1 L13.9,13.9"/>
+                            <StackPanel Grid.Column="1" Margin="12,0,8,0">
+                                <TextBlock Text="Block" FontSize="14" FontWeight="SemiBold"
+                                           Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=RadioButton}}"/>
+                                <TextBlock Text="{Binding Summary}" Style="{StaticResource Muted}" FontSize="11" Margin="0,2,0,0"/>
+                            </StackPanel>
+                            <Ellipse Grid.Column="2" Width="7" Height="7" Fill="{StaticResource Ember}" VerticalAlignment="Center"
+                                     Visibility="{Binding AnyBlocking, Converter={StaticResource BoolToVis}}"
+                                     ToolTip="Something is blocked right now"/>
+                        </Grid>
+                    </RadioButton>
+
+                    <RadioButton x:Name="NavUnblock" GroupName="Nav" Style="{StaticResource NavItem}" Tag="{StaticResource Signal}"
+                                 Checked="Nav_Checked" AutomationProperties.Name="Unblock">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <Path Width="18" Height="18" Stretch="Uniform" StrokeThickness="1.8" VerticalAlignment="Center"
+                                  Stroke="{StaticResource Signal}" StrokeStartLineCap="Round" StrokeEndLineCap="Round"
+                                  Data="M2,9 H15 M11,5 L15,9 L11,13 M7,1.5 V5.5 M7,12.5 V16.5"/>
+                            <StackPanel Grid.Column="1" Margin="12,0,8,0">
+                                <TextBlock Text="Unblock" FontSize="14" FontWeight="SemiBold"
+                                           Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=RadioButton}}"/>
+                                <TextBlock Text="{Binding Summary}" Style="{StaticResource Muted}" FontSize="11" Margin="0,2,0,0"/>
+                            </StackPanel>
+                            <Ellipse Grid.Column="2" Width="7" Height="7" Fill="{StaticResource Signal}" VerticalAlignment="Center"
+                                     Visibility="{Binding HasActive, Converter={StaticResource BoolToVis}}"
+                                     ToolTip="Some domains are rerouted right now"/>
+                        </Grid>
+                    </RadioButton>
+
+                    <TextBlock Text="SYSTEM" Style="{StaticResource Eyebrow}" Foreground="{StaticResource TextFaint}" Margin="8,22,0,10"/>
+
+                    <RadioButton x:Name="NavLogs" GroupName="Nav" Style="{StaticResource NavItem}" Tag="{StaticResource TextMuted}"
+                                 Checked="Nav_Checked" AutomationProperties.Name="Logs">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <Path Width="18" Height="18" Stretch="Uniform" StrokeThickness="1.8" VerticalAlignment="Center"
+                                  Stroke="{StaticResource TextMuted}" StrokeStartLineCap="Round" StrokeEndLineCap="Round"
+                                  Data="M2,3 H16 M2,7.5 H12 M2,12 H16 M2,16.5 H9"/>
+                            <TextBlock Grid.Column="1" Text="Logs" FontSize="14" FontWeight="SemiBold" Margin="12,0,8,0"
+                                       VerticalAlignment="Center"
+                                       Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=RadioButton}}"/>
+                            <Border Grid.Column="2" CornerRadius="8" Padding="6,1" Background="{StaticResource DangerSoft}"
+                                    VerticalAlignment="Center" ToolTip="Warnings and errors this session">
+                                <Border.Style>
+                                    <Style TargetType="Border">
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding ProblemCount}" Value="0">
+                                                <Setter Property="Visibility" Value="Collapsed"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </Border.Style>
+                                <TextBlock Text="{Binding ProblemCount}" Foreground="{StaticResource Danger}" FontSize="11" FontWeight="Bold"/>
+                            </Border>
+                        </Grid>
+                    </RadioButton>
+                </StackPanel>
+            </DockPanel>
         </Border>
+
+        <!-- ================= Pages ================= -->
+        <Grid Grid.Column="1">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
+
+            <!-- Elevation banner (only when not admin) -->
+            <Border x:Name="BannerPanel" Grid.Row="0" Margin="36,20,36,0" CornerRadius="10" Padding="14,10"
+                    Background="{StaticResource WarnSoft}" BorderBrush="{StaticResource Warn}" BorderThickness="1">
+                <TextBlock Foreground="{StaticResource Warn}" TextWrapping="Wrap"
+                           Text="Running without administrator rights — switches are disabled. Close the app, start it again and choose 'Yes' at the prompt."/>
+            </Border>
+
+            <local:BlockView x:Name="BlockPage" Grid.Row="1">
+                <local:BlockView.RenderTransform>
+                    <TranslateTransform/>
+                </local:BlockView.RenderTransform>
+            </local:BlockView>
+            <local:UnblockView x:Name="UnblockPage" Grid.Row="1" Visibility="Collapsed">
+                <local:UnblockView.RenderTransform>
+                    <TranslateTransform/>
+                </local:UnblockView.RenderTransform>
+            </local:UnblockView>
+            <local:LogView x:Name="LogPage" Grid.Row="1" Visibility="Collapsed">
+                <local:LogView.RenderTransform>
+                    <TranslateTransform/>
+                </local:LogView.RenderTransform>
+            </local:LogView>
+        </Grid>
     </Grid>
 </Window>

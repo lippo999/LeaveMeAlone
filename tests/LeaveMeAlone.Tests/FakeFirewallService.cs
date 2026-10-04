@@ -12,9 +12,17 @@ public sealed class FakeFirewallService : IFirewallService
     public List<string> Calls { get; } = new();
     private readonly Dictionary<string, HashSet<string>> _live = new();
 
+    /// <summary>When set, the next <see cref="ApplyBundleAsync"/> throws (after recording the call).</summary>
+    public bool FailNextApply { get; set; }
+
     public Task ApplyBundleAsync(Bundle bundle, CancellationToken ct = default)
     {
         Calls.Add($"ApplyBundle:{bundle.Id}");
+        if (FailNextApply)
+        {
+            FailNextApply = false;
+            throw new FirewallException("simulated failure");
+        }
         _live[bundle.Id] = bundle.Targets
             .Select(t => FirewallRuleNaming.DisplayNameFor(bundle.Id, t.Id))
             .ToHashSet();

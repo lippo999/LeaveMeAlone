@@ -1,0 +1,313 @@
+<UserControl x:Class="LeaveMeAlone.Views.UnblockView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:local="clr-namespace:LeaveMeAlone.Views">
+
+    <!-- DataContext: UnblockViewModel. Accent = Signal (Unblock). -->
+    <UserControl.Resources>
+        <SolidColorBrush x:Key="Accent" Color="{StaticResource SignalColor}"/>
+        <SolidColorBrush x:Key="AccentSoft" Color="#0E2A27"/>
+        <SolidColorBrush x:Key="AccentLine" Color="#1E5F55"/>
+    </UserControl.Resources>
+
+    <Grid>
+        <!-- Atmosphere: a cool glow from the top-right corner -->
+        <Border IsHitTestVisible="False">
+            <Border.Background>
+                <RadialGradientBrush Center="1,0" GradientOrigin="1,0" RadiusX="0.8" RadiusY="0.9">
+                    <GradientStop Color="#223DD9C1" Offset="0"/>
+                    <GradientStop Color="#003DD9C1" Offset="1"/>
+                </RadialGradientBrush>
+            </Border.Background>
+        </Border>
+
+        <Grid Margin="36,30,36,22">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+
+            <!-- Header -->
+            <Grid Grid.Row="0">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <StackPanel MaxWidth="560" HorizontalAlignment="Left">
+                    <TextBlock Text="UNBLOCK  ·  ISP FILTERING" Style="{StaticResource Eyebrow}"/>
+                    <TextBlock Text="Get past your ISP" Style="{StaticResource Display}" Margin="0,6,0,0"/>
+                    <TextBlock Style="{StaticResource Muted}" FontSize="13" TextWrapping="Wrap" Margin="0,8,0,0"
+                               Text="Reach sites your network blocks (DNS poisoning or SNI filtering) without a VPN. Traffic still goes straight to the real server, encrypted end-to-end."/>
+                </StackPanel>
+                <Border Grid.Column="1" Style="{StaticResource SegmentHost}" VerticalAlignment="Bottom" Margin="24,0,0,0">
+                    <StackPanel Orientation="Horizontal">
+                        <RadioButton x:Name="QuickTab" GroupName="UnblockMode" Content="Quick" IsChecked="True"
+                                     Style="{StaticResource Segment}"/>
+                        <RadioButton x:Name="CustomTab" GroupName="UnblockMode" Content="Custom"
+                                     Style="{StaticResource Segment}"/>
+                    </StackPanel>
+                </Border>
+            </Grid>
+
+            <local:BusyBar Grid.Row="1" Margin="0,22,0,0"/>
+
+            <!-- ============ QUICK ============ -->
+            <ScrollViewer Grid.Row="2" Margin="0,18,0,0" VerticalScrollBarVisibility="Auto"
+                          Visibility="{Binding IsChecked, ElementName=QuickTab, Converter={StaticResource BoolToVis}}">
+                <StackPanel>
+                    <ItemsControl ItemsSource="{Binding Presets}" Focusable="False">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Border x:Name="card" CornerRadius="14" Padding="18,16" Margin="0,0,0,10"
+                                        Background="{StaticResource Surface}" BorderBrush="{StaticResource Line}" BorderThickness="1">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+
+                                        <!-- Path-through-a-wall glyph -->
+                                        <Border x:Name="mono" Width="42" Height="42" CornerRadius="11"
+                                                Background="{StaticResource SurfaceAlt}" BorderBrush="{StaticResource Line}" BorderThickness="1">
+                                            <Path x:Name="glyph" Width="18" Height="18" Stretch="Uniform" StrokeThickness="1.8"
+                                                  Stroke="{StaticResource TextMuted}" StrokeStartLineCap="Round" StrokeEndLineCap="Round"
+                                                  Data="M2,9 H15 M11,5 L15,9 L11,13 M7,1.5 V5.5 M7,12.5 V16.5"/>
+                                        </Border>
+
+                                        <StackPanel Grid.Column="1" Margin="16,0,12,0" VerticalAlignment="Center">
+                                            <TextBlock Text="{Binding Title}" Style="{StaticResource H2}"/>
+                                            <TextBlock Text="{Binding Description}" Style="{StaticResource Muted}" TextWrapping="Wrap" Margin="0,3,0,0"/>
+                                            <TextBlock x:Name="status" Text="{Binding StatusText}" Style="{StaticResource Muted}"
+                                                       Foreground="{StaticResource TextFaint}" Margin="0,6,0,0" TextWrapping="Wrap"/>
+                                        </StackPanel>
+
+                                        <Button Grid.Column="2" Content="Details" Click="Details_Click"
+                                                Style="{StaticResource BtnGhost}" Margin="0,0,14,0" VerticalAlignment="Center"
+                                                ToolTip="See exactly which domains are rerouted and how"
+                                                Visibility="{Binding IsOn, Converter={StaticResource BoolToVis}}"/>
+
+                                        <ToggleButton Grid.Column="3" Style="{StaticResource Switch}" VerticalAlignment="Center"
+                                                      IsChecked="{Binding IsOn, Mode=OneWay}" Click="PresetSwitch_Click"
+                                                      AutomationProperties.Name="{Binding Title}"
+                                                      ToolTip="On = find the blocked servers and reroute them"
+                                                      IsEnabled="{Binding DataContext.IsElevated, RelativeSource={RelativeSource AncestorType=UserControl}}"/>
+                                    </Grid>
+                                </Border>
+                                <DataTemplate.Triggers>
+                                    <DataTrigger Binding="{Binding IsOn}" Value="True">
+                                        <Setter TargetName="card" Property="Background" Value="{DynamicResource AccentSoft}"/>
+                                        <Setter TargetName="card" Property="BorderBrush" Value="{DynamicResource AccentLine}"/>
+                                        <Setter TargetName="mono" Property="Background" Value="{DynamicResource Accent}"/>
+                                        <Setter TargetName="mono" Property="BorderBrush" Value="{DynamicResource Accent}"/>
+                                        <Setter TargetName="glyph" Property="Stroke" Value="{StaticResource OnAccent}"/>
+                                        <Setter TargetName="status" Property="Foreground" Value="{DynamicResource Accent}"/>
+                                    </DataTrigger>
+                                </DataTemplate.Triggers>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+
+                    <!-- How it works -->
+                    <Border CornerRadius="14" Padding="18,14" Margin="0,6,0,0"
+                            Background="Transparent" BorderBrush="{StaticResource Line}" BorderThickness="1">
+                        <StackPanel>
+                            <TextBlock Text="HOW IT WORKS" Style="{StaticResource Eyebrow}" Foreground="{StaticResource TextFaint}"/>
+                            <TextBlock Style="{StaticResource Muted}" FontSize="12.5" TextWrapping="Wrap" Margin="0,6,0,0" LineHeight="19"
+                                       Text="Each server is checked first; only the ones blocked on your network are changed. DNS-blocked servers are pinned to their real address. SNI-filtered ones go through a small relay inside this app that hides the server name from the ISP. Relays only run while the app is open — turn on Start with Windows to keep them working."/>
+                        </StackPanel>
+                    </Border>
+
+                    <TextBlock Style="{StaticResource Muted}" TextWrapping="Wrap" Margin="4,12,4,0" Foreground="{StaticResource TextFaint}"
+                               Text="Another site blocked? Use the Custom tab to check and unblock any domain."/>
+                </StackPanel>
+            </ScrollViewer>
+
+            <!-- ============ CUSTOM ============ -->
+            <Grid Grid.Row="2" Margin="0,18,0,0"
+                  Visibility="{Binding IsChecked, ElementName=CustomTab, Converter={StaticResource BoolToVis}}">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+
+                <!-- Domain input -->
+                <DockPanel Grid.Row="0" Margin="0,0,0,14">
+                    <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                        <Button Content="Check" Click="Diagnose_Click" Style="{StaticResource BtnBase}" Margin="10,0,0,0"
+                                ToolTip="Find out whether and how the domain is blocked (changes nothing)"/>
+                        <Button Content="Unblock" Click="Unblock_Click" Style="{StaticResource BtnPrimary}" Margin="8,0,0,0"
+                                IsEnabled="{Binding IsElevated}"/>
+                    </StackPanel>
+                    <Grid>
+                        <TextBox x:Name="DomainBox" Style="{StaticResource Field}" FontFamily="{StaticResource FontMono}"
+                                 Text="{Binding DomainInput, UpdateSourceTrigger=PropertyChanged}" KeyDown="DomainBox_KeyDown"
+                                 AutomationProperties.Name="Domain or URL"/>
+                        <TextBlock Text="Domain or URL — e.g. store.steampowered.com, then press Enter"
+                                   Foreground="{StaticResource TextFaint}" FontSize="13" Margin="12,0,0,0"
+                                   VerticalAlignment="Center" IsHitTestVisible="False">
+                            <TextBlock.Style>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding Text, ElementName=DomainBox}" Value="">
+                                            <Setter Property="Visibility" Value="Visible"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </TextBlock.Style>
+                        </TextBlock>
+                    </Grid>
+                </DockPanel>
+
+                <Grid Grid.Row="1">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="16"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+
+                    <!-- Diagnosis -->
+                    <Border Grid.Column="0" Style="{StaticResource Card}">
+                        <Grid Margin="18">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="*"/>
+                            </Grid.RowDefinitions>
+
+                            <StackPanel Grid.Row="0">
+                                <StackPanel.Style>
+                                    <Style TargetType="StackPanel">
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding HasDiagnosis}" Value="True">
+                                                <Setter Property="Visibility" Value="Collapsed"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </StackPanel.Style>
+                                <TextBlock Text="Check" Style="{StaticResource H2}"/>
+                                <TextBlock Style="{StaticResource Muted}" Margin="0,6,0,0" TextWrapping="Wrap"
+                                           Text="Type a domain and press Check to see whether it's blocked by DNS, by SNI filtering or some other way — and which of its real IPs are fastest."/>
+                            </StackPanel>
+
+                            <StackPanel Grid.Row="0" Visibility="{Binding HasDiagnosis, Converter={StaticResource BoolToVis}}">
+                                <TextBlock Text="{Binding DiagnosisTitle}" Style="{StaticResource H2}" TextWrapping="Wrap"/>
+                                <TextBlock Text="{Binding DiagnosisDetail}" Style="{StaticResource Body}" Foreground="{StaticResource TextMuted}" Margin="0,6,0,0"/>
+                                <Border Background="{DynamicResource AccentSoft}" BorderBrush="{DynamicResource AccentLine}" BorderThickness="1"
+                                        CornerRadius="9" Padding="12,9" Margin="0,12,0,14">
+                                    <TextBlock Text="{Binding DiagnosisAdvice}" Foreground="{DynamicResource Accent}" TextWrapping="Wrap"/>
+                                </Border>
+                                <TextBlock Text="REAL IPS, FASTEST FIRST" Style="{StaticResource Eyebrow}" Foreground="{StaticResource TextFaint}" Margin="0,0,0,6"/>
+                            </StackPanel>
+
+                            <ListBox Grid.Row="1" ItemsSource="{Binding RankedAddresses}" Background="Transparent" BorderThickness="0"
+                                     HorizontalContentAlignment="Stretch" ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                                <ListBox.ItemContainerStyle>
+                                    <Style TargetType="ListBoxItem" BasedOn="{StaticResource PlainItem}">
+                                        <Setter Property="Margin" Value="0,0,0,2"/>
+                                    </Style>
+                                </ListBox.ItemContainerStyle>
+                                <ListBox.ItemTemplate>
+                                    <DataTemplate>
+                                        <Border Padding="10,6" CornerRadius="7" Background="{StaticResource SurfaceAlt}">
+                                            <Grid>
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="26"/>
+                                                    <ColumnDefinition Width="140"/>
+                                                    <ColumnDefinition Width="86"/>
+                                                    <ColumnDefinition Width="*"/>
+                                                </Grid.ColumnDefinitions>
+                                                <TextBlock Grid.Column="0" Text="{Binding Rank}" Style="{StaticResource Mono}" Foreground="{StaticResource TextFaint}"/>
+                                                <TextBlock Grid.Column="1" Text="{Binding Address}" Style="{StaticResource Mono}"/>
+                                                <TextBlock Grid.Column="2" Text="{Binding Latency}" Style="{StaticResource Mono}" Foreground="{StaticResource TextMuted}"/>
+                                                <TextBlock Grid.Column="3" Text="{Binding Tls}" FontSize="12" TextTrimming="CharacterEllipsis">
+                                                    <TextBlock.Style>
+                                                        <Style TargetType="TextBlock">
+                                                            <Setter Property="Foreground" Value="{StaticResource TextMuted}"/>
+                                                            <Style.Triggers>
+                                                                <DataTrigger Binding="{Binding Usable}" Value="True">
+                                                                    <Setter Property="Foreground" Value="{DynamicResource Accent}"/>
+                                                                </DataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </TextBlock.Style>
+                                                </TextBlock>
+                                            </Grid>
+                                        </Border>
+                                    </DataTemplate>
+                                </ListBox.ItemTemplate>
+                            </ListBox>
+                        </Grid>
+                    </Border>
+
+                    <!-- Active unblocks -->
+                    <Border Grid.Column="2" Style="{StaticResource Card}">
+                        <Grid Margin="18">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="*"/>
+                            </Grid.RowDefinitions>
+
+                            <DockPanel Grid.Row="0" Margin="0,0,0,12">
+                                <Button DockPanel.Dock="Right" Content="Remove all" Click="RemoveAll_Click"
+                                        Style="{StaticResource BtnDanger}" IsEnabled="{Binding IsElevated}"/>
+                                <StackPanel>
+                                    <TextBlock Text="Rerouted now" Style="{StaticResource H2}"/>
+                                    <TextBlock Text="{Binding Summary}" Style="{StaticResource Muted}" Margin="0,3,0,0"/>
+                                </StackPanel>
+                            </DockPanel>
+
+                            <ListBox Grid.Row="1" ItemsSource="{Binding Active}" Background="Transparent" BorderThickness="0"
+                                     HorizontalContentAlignment="Stretch" ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                                     ItemContainerStyle="{StaticResource PlainItem}">
+                                <ListBox.ItemTemplate>
+                                    <DataTemplate>
+                                        <Border CornerRadius="10" Padding="14,10" Background="{StaticResource SurfaceAlt}"
+                                                BorderBrush="{StaticResource Line}" BorderThickness="1">
+                                            <DockPanel>
+                                                <Button DockPanel.Dock="Right" Content="Remove" Click="Remove_Click" VerticalAlignment="Center"
+                                                        Style="{StaticResource BtnDanger}"
+                                                        IsEnabled="{Binding DataContext.IsElevated, RelativeSource={RelativeSource AncestorType=UserControl}}"/>
+                                                <StackPanel Margin="0,0,10,0">
+                                                    <StackPanel Orientation="Horizontal">
+                                                        <Border Style="{StaticResource Chip}" Margin="0,0,10,0">
+                                                            <TextBlock Text="{Binding MethodLabel}" Style="{StaticResource ChipText}"/>
+                                                        </Border>
+                                                        <TextBlock Text="{Binding Domain}" Style="{StaticResource Mono}" FontSize="12.5" VerticalAlignment="Center"/>
+                                                    </StackPanel>
+                                                    <TextBlock Text="{Binding Detail}" Style="{StaticResource Muted}" FontSize="11" Margin="0,6,0,0" TextWrapping="Wrap"/>
+                                                    <TextBlock Text="{Binding Health}" FontSize="11" Margin="0,2,0,0" TextWrapping="Wrap">
+                                                        <TextBlock.Style>
+                                                            <Style TargetType="TextBlock">
+                                                                <Setter Property="Foreground" Value="{StaticResource TextMuted}"/>
+                                                                <Style.Triggers>
+                                                                    <DataTrigger Binding="{Binding RelayDown}" Value="True">
+                                                                        <Setter Property="Foreground" Value="{StaticResource Warn}"/>
+                                                                    </DataTrigger>
+                                                                </Style.Triggers>
+                                                            </Style>
+                                                        </TextBlock.Style>
+                                                    </TextBlock>
+                                                </StackPanel>
+                                            </DockPanel>
+                                        </Border>
+                                    </DataTemplate>
+                                </ListBox.ItemTemplate>
+                            </ListBox>
+                        </Grid>
+                    </Border>
+                </Grid>
+            </Grid>
+
+            <!-- Status line -->
+            <DockPanel Grid.Row="3" Margin="2,14,0,0">
+                <Ellipse Width="6" Height="6" Fill="{DynamicResource Accent}" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                <TextBlock Text="{Binding StatusMessage}" Style="{StaticResource Muted}" TextTrimming="CharacterEllipsis"
+                           ToolTip="{Binding StatusMessage}"/>
+            </DockPanel>
+        </Grid>
+    </Grid>
+</UserControl>

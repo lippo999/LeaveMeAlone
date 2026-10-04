@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using LeaveMeAlone.Services;
 using LeaveMeAlone.Services.Unblock;
 
 namespace LeaveMeAlone.ViewModels;
@@ -26,6 +27,7 @@ public sealed record AddressRow(int Rank, string Address, string Latency, string
 public sealed class UnblockedDomainViewModel : ObservableObject
 {
     private string _health = "";
+    private bool _relayDown;
 
     public UnblockedDomainViewModel(UnblockedDomain model) => Model = model;
 
@@ -40,6 +42,38 @@ public sealed class UnblockedDomainViewModel : ObservableObject
 
     /// <summary>Live relay state (connections / last error); empty for DNS pins.</summary>
     public string Health { get => _health; set => Set(ref _health, value); }
+
+    /// <summary>True when this domain needs a relay that isn't running (shown as a warning).</summary>
+    public bool RelayDown { get => _relayDown; set => Set(ref _relayDown, value); }
+}
+
+/// <summary>One switch on the Quick unblock screen.</summary>
+public sealed class UnblockPresetViewModel : ObservableObject
+{
+    private int _activeCount;
+    private string _note = "";
+
+    public UnblockPresetViewModel(UnblockPreset preset) => Preset = preset;
+
+    public UnblockPreset Preset { get; }
+    public string Title => Preset.Name;
+    public string Description => Preset.Description;
+    public bool IsOn => _activeCount > 0;
+
+    /// <summary>Progress or the outcome of the last run; shown instead of the default status while set.</summary>
+    public string Note { get => _note; set { if (Set(ref _note, value)) OnPropertyChanged(nameof(StatusText)); } }
+
+    public string StatusText => Note.Length > 0 ? Note
+        : IsOn ? $"On · {_activeCount} of {Preset.Domains.Count} servers rerouted"
+        : "Off";
+
+    /// <summary>Always raises change events so a switch the user flipped snaps back if the change failed.</summary>
+    public void SetActiveCount(int count)
+    {
+        _activeCount = count;
+        OnPropertyChanged(nameof(IsOn));
+        OnPropertyChanged(nameof(StatusText));
+    }
 }
 
 public sealed class UnblockViewModel : GuardedViewModel
@@ -48,14 +82,26 @@ public sealed class UnblockViewModel : GuardedViewModel
     private DomainDiagnosis? _diagnosis;
     private string _domainInput = "";
 
-    public UnblockViewModel(UnblockManager manager, bool isElevated)
+    public UnblockViewModel(UnblockManager manager, bool isElevated, AppLog? log = null)
+        : base(log, "Unblock")
     {
         _manager = manager;
         IsElevated = isElevated;
+        foreach (var preset in UnblockPresets.All)
+            Presets.Add(new UnblockPresetViewModel(preset));
     }
 
     public bool IsElevated { get; }
+    public ObservableCollection<UnblockPresetViewModel> Presets { get; } = new();
     public ObservableCollection<UnblockedDomainViewModel> Active { get; } = new();
+
+    public bool HasActive => Active.Count > 0;
+    public string Summary => Active.Count switch
+    {
+        0 => "Nothing rerouted",
+        1 => "1 domain rerouted",
+        var n => $"{n} domains rerouted",
+    };
     public ObservableCollection<AddressRow> RankedAddresses { get; } = new();
 
     public string DomainInput { get => _domainInput; set => Set(ref _domainInput, value); }
@@ -71,9 +117,10 @@ public sealed class UnblockViewModel : GuardedViewModel
         {
             var warnings = await _manager.InitializeAsync();
             Reload();
+            // Only problems are reported here: App copies this into the main status line on startup.
             StatusMessage = warnings.Count > 0
                 ? $"Some unblocks couldn't be restored: {string.Join(" | ", warnings)}"
-                : Active.Count > 0 ? $"{Active.Count} domain(s) unblocked." : "";
+                : "";
         }, "Failed to restore unblocked domains");
     }
 
@@ -98,32 +145,65 @@ public sealed class UnblockViewModel : GuardedViewModel
         StatusMessage = $"Unblocked {entry.Domain} via {(entry.Method == UnblockMethod.SniRelay ? "SNI relay" : "DNS pin")}.";
     }, "Unblock failed");
 
+    /// <summary>Quick-screen switch: on = unblock whatever the preset finds blocked, off = undo the preset's unblocks.</summary>
+    public Task TogglePresetAsync(UnblockPresetViewModel row, bool on) => on ? RunPresetAsync(row) : RemovePresetAsync(row);
+
     /// <summary>Diagnoses every domain of the preset and unblocks the ones that are blocked.</summary>
-    public Task UnblockPresetAsync(UnblockPreset preset) => RunGuardedAsync(async () =>
+    private async Task RunPresetAsync(UnblockPresetViewModel row)
     {
-        RequireElevation();
-        var done = new List<string>();
-        var clear = new List<string>();
-        var failed = new List<string>();
-        foreach (var domain in preset.Domains)
+        var preset = row.Preset;
+        await RunGuardedAsync(async () =>
         {
-            StatusMessage = $"{preset.Name}: checking {domain}…";
+            RequireElevation();
+            var done = new List<string>();
+            var clear = new List<string>();
+            var failed = new List<string>();
             try
             {
-                var diagnosis = await _manager.DiagnoseAsync(domain);
-                if (diagnosis.Kind == BlockKind.None) { clear.Add(domain); continue; }
-                await _manager.UnblockAsync(diagnosis);
-                done.Add(domain);
+                foreach (var (domain, i) in preset.Domains.Select((d, i) => (d, i)))
+                {
+                    row.Note = $"Checking {i + 1} of {preset.Domains.Count}…";
+                    StatusMessage = $"{preset.Name}: checking {domain}…";
+                    try
+                    {
+                        var diagnosis = await _manager.DiagnoseAsync(domain);
+                        if (diagnosis.Kind == BlockKind.None) { clear.Add(domain); continue; }
+                        await _manager.UnblockAsync(diagnosis);
+                        done.Add(domain);
+                    }
+                    catch (UnblockException ex)
+                    {
+                        failed.Add($"{domain} ({ex.Message})");
+                    }
+                }
             }
-            catch (UnblockException ex)
+            finally
             {
-                failed.Add($"{domain} ({ex.Message})");
+                row.Note = "";
             }
-        }
+            if (done.Count == 0 && failed.Count == 0) row.Note = "Nothing is blocked on this network — no change needed";
+            StatusMessage = $"{preset.Name}: unblocked {done.Count}, already reachable {clear.Count}" +
+                            (failed.Count > 0 ? $", failed: {string.Join("; ", failed)}" : ".");
+        }, "Preset failed");
         Reload();
-        StatusMessage = $"{preset.Name}: unblocked {done.Count}, already reachable {clear.Count}" +
-                        (failed.Count > 0 ? $", failed: {string.Join("; ", failed)}" : ".");
-    }, "Preset failed");
+    }
+
+    private async Task RemovePresetAsync(UnblockPresetViewModel row)
+    {
+        await RunGuardedAsync(async () =>
+        {
+            RequireElevation();
+            row.Note = "";
+            var active = ActiveDomainsOf(row.Preset);
+            foreach (var domain in active)
+                await _manager.RemoveAsync(domain);
+            StatusMessage = $"{row.Preset.Name}: {active.Count} domain(s) back to normal.";
+        }, "Remove failed");
+        Reload();
+    }
+
+    private List<string> ActiveDomainsOf(UnblockPreset preset) =>
+        preset.Domains.Where(d => _manager.Domains.Any(a => a.Domain == d)).ToList();
 
     public Task RemoveAsync(UnblockedDomainViewModel vm) => RunGuardedAsync(async () =>
     {
@@ -147,7 +227,8 @@ public sealed class UnblockViewModel : GuardedViewModel
         var status = _manager.RelayStatus().ToDictionary(s => s.Domain, StringComparer.OrdinalIgnoreCase);
         foreach (var vm in Active.Where(a => a.Model.Method == UnblockMethod.SniRelay))
         {
-            vm.Health = status.TryGetValue(vm.Domain, out var s)
+            vm.RelayDown = !status.TryGetValue(vm.Domain, out var s);
+            vm.Health = s is not null
                 ? $"relay running · {s.Connections} connection(s)" + (s.LastError is { } e ? $" · last error: {e}" : "")
                 : "relay NOT running — reopen the app or unblock again";
         }
@@ -177,6 +258,10 @@ public sealed class UnblockViewModel : GuardedViewModel
         Active.Clear();
         foreach (var domain in _manager.Domains)
             Active.Add(new UnblockedDomainViewModel(domain));
+        foreach (var row in Presets)
+            row.SetActiveCount(ActiveDomainsOf(row.Preset).Count);
+        OnPropertyChanged(nameof(HasActive));
+        OnPropertyChanged(nameof(Summary));
         RefreshHealth();
     }
 

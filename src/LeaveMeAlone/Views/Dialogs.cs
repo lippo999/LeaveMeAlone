@@ -14,7 +14,7 @@ public static class Dialogs
 {
     public static string? PromptText(Window owner, string title, string prompt, string initial = "")
     {
-        var window = NewDialog(owner, title, 440, 190);
+        var window = NewDialog(owner, title, 440, 215);
         var panel = new StackPanel { Margin = new Thickness(20) };
         panel.Children.Add(Label(prompt));
 
@@ -39,7 +39,7 @@ public static class Dialogs
 
     public static FirewallTarget? PromptIpTarget(Window owner)
     {
-        var window = NewDialog(owner, "Add IP / server", 460, 320);
+        var window = NewDialog(owner, "Add IP / server", 470, 380);
         var panel = new StackPanel { Margin = new Thickness(20) };
 
         panel.Children.Add(Label("Remote IP address or CIDR range (e.g. 203.0.113.5 or 203.0.113.0/24)"));
@@ -148,7 +148,7 @@ public static class Dialogs
 
     // ----- shared helpers -----
 
-    private static Window NewDialog(Window owner, string title, double width, double height) => new()
+    private static Window NewDialog(Window owner, string title, double width, double height) => new Window
     {
         Title = title,
         Owner = owner,
@@ -157,28 +157,30 @@ public static class Dialogs
         WindowStartupLocation = WindowStartupLocation.CenterOwner,
         ResizeMode = ResizeMode.NoResize,
         WindowStyle = WindowStyle.ToolWindow,
-        Background = Brush("Bg"),
+        Background = Brush("Surface"),
+        FontFamily = (FontFamily)Application.Current.Resources["FontUi"],
         ShowInTaskbar = false,
-    };
+    }.WithDarkCaption();
+
+    private static Window WithDarkCaption(this Window window)
+    {
+        WindowTheme.UseDarkCaption(window);
+        return window;
+    }
 
     private static TextBlock Label(string text) => new()
     {
         Text = text,
-        Foreground = Brush("Text"),
+        Foreground = Brush("TextMuted"),
+        FontSize = 12.5,
         TextWrapping = TextWrapping.Wrap,
-        Margin = new Thickness(0, 6, 0, 0),
+        Margin = new Thickness(0, 10, 0, 0),
     };
 
     private static TextBox NewTextBox(string initial) => new()
     {
         Text = initial,
-        Foreground = Brush("Text"),
-        Background = Brush("SurfaceAlt"),
-        BorderBrush = Brush("Line"),
-        CaretBrush = Brush("Text"),
-        BorderThickness = new Thickness(1),
-        Padding = new Thickness(8, 6, 8, 6),
-        FontSize = 13,
+        Style = (Style)Application.Current.Resources["Field"],
     };
 
     private static StackPanel ButtonRow(params (string text, bool primary, Action onClick)[] defs)

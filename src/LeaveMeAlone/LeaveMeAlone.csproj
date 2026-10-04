@@ -10,6 +10,7 @@
     <RootNamespace>LeaveMeAlone</RootNamespace>
     <AssemblyName>LeaveMeAlone</AssemblyName>
     <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationIcon>Assets\app.ico</ApplicationIcon>
     <Version>0.2.0</Version>
     <!-- Allows `dotnet restore` to run on non-Windows hosts; building WPF still requires Windows. -->
     <EnableWindowsTargeting>true</EnableWindowsTargeting>
@@ -20,6 +21,12 @@
          global usings would make WPF names like Application/TextBox/Brush ambiguous everywhere. -->
     <Using Remove="System.Windows.Forms" />
     <Using Remove="System.Drawing" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Window/tray icon + sidebar logo (pack://application:,,,/Assets/...). Regenerate with tools/make_icon.ps1. -->
+    <Resource Include="Assets\app.ico" />
+    <Resource Include="Assets\app.png" />
   </ItemGroup>
 
 </Project>

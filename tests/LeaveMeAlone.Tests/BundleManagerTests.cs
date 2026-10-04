@@ -105,4 +105,39 @@ public class BundleManagerTests : IDisposable
 
         Assert.Single(await manager.GetLiveRuleNamesAsync(bundle.Id));
     }
+
+    [Fact]
+    public async Task CreateWithTargets_AppliesAllRulesOnceAndPersistsEnabled()
+    {
+        var manager = NewManager();
+        var targets = new[]
+        {
+            new FirewallTarget { Type = TargetType.Program, Value = @"C:\steam.exe" },
+            new FirewallTarget { Type = TargetType.Program, Value = @"C:\web.exe" },
+        };
+
+        var bundle = await manager.CreateBundleWithTargetsAsync(" Steam ", targets, enabled: true);
+
+        Assert.Equal("Steam", bundle.Name);
+        Assert.True(bundle.Enabled);
+        Assert.Equal(new[] { $"ApplyBundle:{bundle.Id}" }, _firewall.Calls);
+        Assert.Equal(2, (await manager.GetLiveRuleNamesAsync(bundle.Id)).Count);
+        var reloaded = Assert.Single(await NewManager().InitializeAsync());
+        Assert.True(reloaded.Enabled);
+        Assert.Equal(2, reloaded.Targets.Count);
+    }
+
+    [Fact]
+    public async Task CreateWithTargets_WhenFirewallFails_CleansUpAndPersistsNothing()
+    {
+        var manager = NewManager();
+        _firewall.FailNextApply = true;
+
+        await Assert.ThrowsAsync<FirewallException>(() => manager.CreateBundleWithTargetsAsync("Steam",
+            new[] { new FirewallTarget { Type = TargetType.Program, Value = "a" } }, enabled: true));
+
+        Assert.Empty(manager.Bundles);
+        Assert.Contains(_firewall.Calls, c => c.StartsWith("RemoveBundle:"));
+        Assert.Empty(await NewManager().InitializeAsync());
+    }
 }

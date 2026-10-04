@@ -22,11 +22,16 @@ public partial class App : Application
 
         MigrateFromLegacyName();
 
-        var runner = new ProcessRunner();
+        var log = new AppLog(AppLog.DefaultDirectory);
+        WatchCrashes(log);
+        log.Info("App", $"LeaveMeAlone {typeof(App).Assembly.GetName().Version} started " +
+                        $"({(Platform.IsElevated() ? "administrator" : "read-only, not administrator")}).");
+
+        var runner = new ProcessRunner(log);
         var firewall = new PowerShellFirewallService(runner);
         var store = new JsonBundleStore();
         var manager = new BundleManager(store, firewall);
-        var viewModel = new MainViewModel(manager, Platform.IsElevated());
+        var viewModel = new MainViewModel(manager, Platform.IsElevated(), log: log);
 
         _relay = new SniRelayHost();
         _unblock = new UnblockManager(
@@ -34,14 +39,23 @@ public partial class App : Application
             new WindowsHostsFile(runner),
             new DomainDiagnoser(new SystemDnsResolver(), new DohResolver(), new ConnectivityProbe()),
             _relay);
-        var unblockViewModel = new UnblockViewModel(_unblock, Platform.IsElevated());
+        var unblockViewModel = new UnblockViewModel(_unblock, Platform.IsElevated(), log);
+        var logViewModel = new LogViewModel(log, action => Dispatcher.BeginInvoke(action));
 
-        var window = new MainWindow(viewModel, unblockViewModel);
+        var window = new MainWindow(viewModel, unblockViewModel, logViewModel);
         MainWindow = window;
         window.Show();
 
         _tray = new TrayIcon(window, viewModel);
         _ = RestoreUnblocksAsync(unblockViewModel, viewModel);
+    }
+
+    // Unexpected exceptions go to the log file before anything else happens, so a crash leaves a trace.
+    private void WatchCrashes(AppLog log)
+    {
+        DispatcherUnhandledException += (_, e) => log.Error("App", $"Unhandled error: {e.Exception.Message}", e.Exception.ToString());
+        TaskScheduler.UnobservedTaskException += (_, e) =>
+            log.Error("App", $"Unobserved task error: {e.Exception.GetBaseException().Message}", e.Exception.ToString());
     }
 
     // The app used to be called "Firewall Bundle Blocker"; carry its data and autostart over.
