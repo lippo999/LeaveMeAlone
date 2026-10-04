@@ -1,29 +1,40 @@
-# Firewall Bundle Blocker
+# LeaveMeAlone
 
-A Windows desktop app (WPF, .NET 8) that groups Windows Firewall rules into **named bundles**
-you can toggle on and off with a single switch — much simpler than the built-in firewall UI.
+*Tell your ISP — and your apps — to leave you alone.*
 
-Originally built for gaming (force Steam / Ubisoft Connect into offline mode), but the app is
-fully generic: **you** create bundles and choose what each one blocks.
+A Windows desktop app (WPF, .NET 8) with two jobs:
 
-## How it works
+1. **Unblock domains** your ISP filters (DNS poisoning / SNI filtering) — without a VPN, only for
+   the domains you pick, traffic still going straight to the real server.
+2. **Firewall bundles** — group Windows Firewall rules into named bundles and toggle each with one
+   switch (e.g. force a game launcher into offline mode).
 
-- A **bundle** is a user-created group of block targets.
-- A **target** is either:
-  - a **program** — blocks that executable's outbound traffic (a launcher then drops into offline
-    mode while its games still launch), or
-  - a **remote IP / CIDR** — blocks a specific server address (optionally a port + protocol).
-- Toggling a bundle enables/disables all of its firewall rules at once.
-- Every rule this app creates is tagged `FBB::<bundleId>::<targetId>` and grouped per bundle, so
-  the app only ever touches its own rules — never your existing firewall or system rules.
-- Bundles are saved to `%APPDATA%\FirewallBundleBlocker\bundles.json`.
+> Formerly *Firewall Bundle Blocker*. On first launch the app moves its saved data from
+> `%APPDATA%\FirewallBundleBlocker` to `%APPDATA%\LeaveMeAlone` and updates the "Start with
+> Windows" entry. Firewall rules (`FBB::…`) and the hosts-file block keep their original tags so
+> rules and blocks written by older versions are still recognized.
+
+## Download
+
+No install and no .NET needed — download one file and run it (accept the administrator prompt):
+
+- **Latest build of `main`:** [LeaveMeAlone.exe (nightly)](https://github.com/lippo999/LeaveMeAlone/releases/download/nightly/LeaveMeAlone.exe)
+- **Latest stable release:** [LeaveMeAlone.exe](https://github.com/lippo999/LeaveMeAlone/releases/latest/download/LeaveMeAlone.exe)
+  (available once a `v*` tag has been released)
+
+Each release also has `LeaveMeAlone.exe.sha256`. Builds come from
+[.github/workflows/build.yml](.github/workflows/build.yml): every push to `main` runs the tests and
+refreshes *nightly*; pushing a tag such as `v0.2.0` publishes a versioned release.
+
+Windows SmartScreen may warn because the exe isn't code-signed: *More info → Run anyway*.
 
 ## Unblock domains (ISP filtering, no VPN)
 
 Some ISPs (e.g. in Vietnam) block sites such as `store.steampowered.com` by **DNS poisoning**
 (their DNS answers `127.0.0.1`) and/or **SNI filtering** (DPI resets the TLS connection when it
 sees the domain name in the ClientHello). The server itself stays reachable. **Unblock domains**
-(header button) works around both for the domains you choose — nothing else is affected:
+(header button) works around both for the domains you choose — nothing else is affected.
+Full design notes: [docs/domain-unblock.md](docs/domain-unblock.md).
 
 | Detected | What the app does |
 |---|---|
@@ -36,11 +47,23 @@ sees the domain name in the ClientHello). The server itself stays reachable. **U
 - **Remove / Remove all** deletes the app's hosts lines and stops relays; the hosts file is restored
   byte-for-byte. On exit, relay lines are removed and re-added on next launch.
 - **Quick: Steam** diagnoses the Steam store/community domains and unblocks only the blocked ones.
-- Saved in `%APPDATA%\FirewallBundleBlocker\unblocked.json`; the previous hosts file is copied to
+- Saved in `%APPDATA%\LeaveMeAlone\unblocked.json`; the previous hosts file is copied to
   `hosts.backup` there before every write.
 - Caveats: a browser set to its *own* DNS-over-HTTPS in strict mode (Firefox TRR mode 3) ignores
   the hosts file; relayed traffic leaves through this app, so a bundle blocking a launcher's
   program doesn't block that launcher's relayed domains.
+
+## Firewall bundles
+
+- A **bundle** is a user-created group of block targets.
+- A **target** is either:
+  - a **program** — blocks that executable's outbound traffic (a launcher then drops into offline
+    mode while its games still launch), or
+  - a **remote IP / CIDR** — blocks a specific server address (optionally a port + protocol).
+- Toggling a bundle enables/disables all of its firewall rules at once.
+- Every rule this app creates is tagged `FBB::<bundleId>::<targetId>` and grouped per bundle, so
+  the app only ever touches its own rules — never your existing firewall or system rules.
+- Bundles are saved to `%APPDATA%\LeaveMeAlone\bundles.json`.
 
 ## Requirements
 
@@ -52,7 +75,7 @@ sees the domain name in the ClientHello). The server itself stays reachable. **U
 
 ```powershell
 dotnet build
-dotnet run --project src\FirewallBundleBlocker   # UAC prompt appears on launch
+dotnet run --project src\LeaveMeAlone   # UAC prompt appears on launch
 ```
 
 > WPF only builds and runs on Windows. If you edit the source on Linux/WSL, copy the folder to a
@@ -71,7 +94,7 @@ fake firewall service.
 ## Project layout
 
 ```
-src/FirewallBundleBlocker/
+src/LeaveMeAlone/
   Models.cs                     Bundle, FirewallTarget, TargetType (immutable records)
   Services/
     Firewall.cs                 IFirewallService + PowerShell (NetSecurity) implementation
@@ -85,7 +108,7 @@ src/FirewallBundleBlocker/
     Dialogs.cs                  small modal dialogs (name / IP / launcher picker)
   App.xaml(.cs)                 theme + composition root
   app.manifest                  requestedExecutionLevel = requireAdministrator
-tests/FirewallBundleBlocker.Tests/
+tests/LeaveMeAlone.Tests/
 ```
 
 ## Extras

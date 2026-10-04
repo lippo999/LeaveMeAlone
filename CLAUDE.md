@@ -1,13 +1,17 @@
-# CLAUDE.md — Firewall Bundle Blocker
+# CLAUDE.md — LeaveMeAlone
 
 Project guide for Claude Code. Read this first when working on this repo.
 
 ## What this is
 
-A **Windows desktop app (WPF, .NET 8)** that groups Windows Firewall rules into user-created,
-named **bundles** you can toggle on/off with one switch — simpler than the native firewall UI.
-Primary use case: force game launchers (Steam, Ubisoft Connect, …) into offline mode. But bundles
-are fully generic: the user decides what each one blocks.
+**LeaveMeAlone** (formerly *Firewall Bundle Blocker*) is a **Windows desktop app (WPF, .NET 8)**.
+Main feature: **unblock domains** the ISP filters (DNS poisoning / SNI filtering) without a VPN —
+see `docs/domain-unblock.md`. Secondary feature: group Windows Firewall rules into user-created,
+named **bundles** toggled with one switch (e.g. force a game launcher offline).
+
+Legacy identifiers kept on purpose (renaming would orphan data from older installs): firewall
+rule tag `FBB::`, hosts-file markers `# >>> FirewallBundleBlocker unblock …`. `App` migrates
+`%APPDATA%\FirewallBundleBlocker` → `%APPDATA%\LeaveMeAlone` and the old Run-key value on startup.
 
 - A **bundle** = a named group of block targets, toggled as one unit.
 - A **target** = a program (`.exe`, blocks outbound → launcher goes offline) or a remote IP/CIDR
@@ -29,7 +33,7 @@ self-elevates via `app.manifest` → `requireAdministrator`).
 ```powershell
 dotnet build
 dotnet test
-dotnet run --project src\FirewallBundleBlocker    # UAC prompt on launch
+dotnet run --project src\LeaveMeAlone    # UAC prompt on launch
 ```
 Install SDK if needed: `winget install Microsoft.DotNet.SDK.8`.
 
@@ -44,7 +48,7 @@ Install SDK if needed: `winget install Microsoft.DotNet.SDK.8`.
 - **`IFirewallService`** (Services/Firewall.cs): abstraction over Windows Firewall. Real impl
   `PowerShellFirewallService` shells `powershell.exe` NetSecurity cmdlets
   (`New-/Enable-/Disable-/Remove-NetFirewallRule`). `IProcessRunner` is the injected shell seam.
-- **`JsonBundleStore`** (Services): persistence at `%APPDATA%\FirewallBundleBlocker\bundles.json`
+- **`JsonBundleStore`** (Services): persistence at `%APPDATA%\LeaveMeAlone\bundles.json`
   (atomic write; enums as strings; corrupt file → backed up + empty).
 - **UI:** `ViewModels.cs` (MVVM), `Views/MainWindow.xaml(.cs)`, `Views/Dialogs.cs` (code-built
   modals), `Views/TrayIcon.cs` (WinForms `NotifyIcon`). Theme lives in `App.xaml`.
@@ -63,7 +67,7 @@ Install SDK if needed: `winget install Microsoft.DotNet.SDK.8`.
 ## File map
 
 ```
-src/FirewallBundleBlocker/
+src/LeaveMeAlone/
   App.xaml(.cs), app.manifest        theme + composition root + admin manifest
   Models.cs                          Bundle, FirewallTarget, TargetType (records)
   ViewModels.cs                      ObservableObject, RelayCommand, *ViewModel, MainViewModel
@@ -73,7 +77,8 @@ src/FirewallBundleBlocker/
   Services/CommonLaunchers.cs        quick-add launcher presets (detected by install path)
   Services/Platform.cs               elevation + StartupRegistration
   Services/JsonFile.cs               shared atomic JSON load/save
-  Services/Unblock/                  domain unblocking (ISP DNS poisoning / SNI filtering):
+  Services/Unblock/                  domain unblocking (ISP DNS poisoning / SNI filtering) —
+                                     design doc: docs/domain-unblock.md
     UnblockModels.cs                   BlockKind, UnblockMethod, DomainDiagnosis, UnblockedDomain, DomainName
     DnsWire.cs / Resolvers.cs          raw DNS to system resolvers (bypasses hosts) + DoH (1.1.1.1, 8.8.8.8)
     ConnectivityProbe.cs               TCP latency + TLS handshake probe, ClientHelloFragmentingStream
@@ -87,7 +92,7 @@ src/FirewallBundleBlocker/
   Views/MainWindow.xaml(.cs)         main UI
   Views/Dialogs.cs                   name / IP / launcher-picker modals
   Views/TrayIcon.cs                  system-tray quick-toggle
-tests/FirewallBundleBlocker.Tests/   xUnit: Domain, BundleStore, BundleManager, FakeFirewallService,
+tests/LeaveMeAlone.Tests/   xUnit: Domain, BundleStore, BundleManager, FakeFirewallService,
                                      Unblock/ (fakes, diagnoser, manager, loopback TLS relay tests)
 ```
 

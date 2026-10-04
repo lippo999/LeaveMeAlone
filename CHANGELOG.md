@@ -16,6 +16,10 @@ All notable changes to this project are documented here. Format loosely follows
   and loopback TLS integration tests for the relay).
 
 ### Changed
+- **Renamed to LeaveMeAlone** (solution, projects, namespaces, executable, UI). Domain unblocking
+  is now the main feature. Saved data moves from `%APPDATA%\FirewallBundleBlocker` to
+  `%APPDATA%\LeaveMeAlone` and the "Start with Windows" entry is migrated on first launch; the
+  `FBB::` rule tag and hosts-file markers are unchanged for compatibility.
 - Shared `JsonFile` helper (atomic save, corrupt-file backup) now backs both JSON stores.
 - `GuardedViewModel` base extracted from `MainViewModel` (status/busy/error guard).
 
@@ -38,7 +42,7 @@ Windows build).
 - **Firewall layer:** `IFirewallService` with a PowerShell (NetSecurity) implementation; rules
   tagged `FBB::<bundleId>::<targetId>` and grouped per bundle so the app only touches its own
   rules. `IProcessRunner` shell seam.
-- **Persistence:** `JsonBundleStore` at `%APPDATA%\FirewallBundleBlocker\bundles.json` — atomic
+- **Persistence:** `JsonBundleStore` at `%APPDATA%\LeaveMeAlone\bundles.json` — atomic
   writes, enums as strings, corrupt-file backup.
 - **Orchestration:** `BundleManager` — create/rename/delete bundles, add/remove targets, toggle,
   startup reconciliation (self-heals missing rules), import/export.
