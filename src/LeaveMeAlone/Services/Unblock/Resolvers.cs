@@ -13,7 +13,8 @@ public interface IDnsResolver
 
 /// <summary>
 /// Asks the DNS servers configured on this PC's network adapters (i.e. what the ISP answers),
-/// bypassing the hosts file so our own pins never mask the real answer.
+/// bypassing the hosts file so our own pins never mask the real answer. Asks for both A and AAAA:
+/// ISPs also poison only the IPv6 answer (e.g. <c>::1</c>), which apps then try first.
 /// </summary>
 public sealed class SystemDnsResolver : IDnsResolver
 {
@@ -29,7 +30,10 @@ public sealed class SystemDnsResolver : IDnsResolver
         {
             try
             {
-                return new DnsAnswer(await QueryAsync(server, domain, ct).ConfigureAwait(false));
+                var v4 = QueryAsync(server, domain, DnsWire.TypeA, ct);
+                var v6 = QueryAsync(server, domain, DnsWire.TypeAaaa, ct);
+                var addresses = (await v4.ConfigureAwait(false)).Concat(await v6.ConfigureAwait(false)).ToList();
+                return new DnsAnswer(addresses);
             }
             catch (Exception ex) when (ex is SocketException or FormatException or TimeoutException)
             {
@@ -39,11 +43,11 @@ public sealed class SystemDnsResolver : IDnsResolver
         return DnsAnswer.Failed(lastError ?? "No DNS server answered.");
     }
 
-    private static async Task<IReadOnlyList<IPAddress>> QueryAsync(IPAddress server, string domain, CancellationToken ct)
+    private static async Task<IReadOnlyList<IPAddress>> QueryAsync(IPAddress server, string domain, ushort type, CancellationToken ct)
     {
         var id = (ushort)Random.Shared.Next(ushort.MaxValue);
         using var udp = new UdpClient(server.AddressFamily);
-        await udp.SendAsync(DnsWire.BuildQuery(id, domain), new IPEndPoint(server, 53), ct).ConfigureAwait(false);
+        await udp.SendAsync(DnsWire.BuildQuery(id, domain, type), new IPEndPoint(server, 53), ct).ConfigureAwait(false);
 
         using var timeout = CancellationTokenSource.CreateLinkedTokenSource(ct);
         timeout.CancelAfter(Timeout);

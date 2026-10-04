@@ -81,6 +81,23 @@ public class DnsWireTests
     }
 
     [Fact]
+    public void BuildQuery_EncodesRequestedType()
+    {
+        var query = DnsWire.BuildQuery(1, "a.bc", DnsWire.TypeAaaa);
+        Assert.Equal(new byte[] { 0, 28, 0, 1 }, query[^4..]);
+    }
+
+    [Fact]
+    public void ParseAddresses_ReadsAaaaRecords()
+    {
+        var loopback6 = new byte[16];
+        loopback6[15] = 1;
+        var response = Response(9, rcode: 0, Answer(type: 28, data: loopback6), Answer(type: 1, data: new byte[] { 1, 2, 3, 4 }));
+
+        Assert.Equal(new[] { IPAddress.IPv6Loopback, IPAddress.Parse("1.2.3.4") }, DnsWire.ParseAddresses(response, 9));
+    }
+
+    [Fact]
     public void BuildQuery_RejectsEmptyLabel()
     {
         Assert.Throws<ArgumentException>(() => DnsWire.BuildQuery(1, "a..b"));

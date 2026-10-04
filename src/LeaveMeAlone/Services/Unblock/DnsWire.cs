@@ -5,16 +5,17 @@ using System.Net.Sockets;
 namespace LeaveMeAlone.Services.Unblock;
 
 /// <summary>
-/// Minimal DNS wire format (RFC 1035) for A queries. Used to ask the system's configured DNS
-/// servers directly, because <see cref="Dns.GetHostAddressesAsync(string)"/> would read the hosts
-/// file — and therefore return our own pins instead of what the ISP actually answers.
+/// Minimal DNS wire format (RFC 1035) for A/AAAA. Used to ask the system's configured DNS servers
+/// directly — <see cref="Dns.GetHostAddressesAsync(string)"/> would read the hosts file and return
+/// our own pins instead of what the ISP answers.
 /// </summary>
 public static class DnsWire
 {
-    private const ushort TypeA = 1;
+    public const ushort TypeA = 1;
+    public const ushort TypeAaaa = 28;
     private const ushort ClassIn = 1;
 
-    public static byte[] BuildQuery(ushort id, string domain)
+    public static byte[] BuildQuery(ushort id, string domain, ushort type = TypeA)
     {
         var buffer = new List<byte>(32 + domain.Length);
         Span<byte> header = stackalloc byte[12];
@@ -30,11 +31,11 @@ public static class DnsWire
             buffer.AddRange(System.Text.Encoding.ASCII.GetBytes(label));
         }
         buffer.Add(0);
-        buffer.AddRange(new byte[] { 0, (byte)TypeA, 0, (byte)ClassIn });
+        buffer.AddRange(new byte[] { (byte)(type >> 8), (byte)type, 0, (byte)ClassIn });
         return buffer.ToArray();
     }
 
-    /// <summary>Extracts the A records from a response. Throws <see cref="FormatException"/> on malformed data.</summary>
+    /// <summary>Extracts the A and AAAA records from a response. Throws <see cref="FormatException"/> on malformed data.</summary>
     public static IReadOnlyList<IPAddress> ParseAddresses(ReadOnlySpan<byte> response, ushort expectedId)
     {
         if (response.Length < 12) throw new FormatException("DNS response too short.");
@@ -67,8 +68,8 @@ public static class DnsWire
             offset += 10;
             if (offset + length > response.Length) throw new FormatException("Truncated DNS record data.");
 
-            if (type == TypeA && cls == ClassIn && length == 4)
-                result.Add(new IPAddress(response.Slice(offset, 4)));
+            if (cls == ClassIn && ((type == TypeA && length == 4) || (type == TypeAaaa && length == 16)))
+                result.Add(new IPAddress(response.Slice(offset, length)));
             offset += length;
         }
         return result;

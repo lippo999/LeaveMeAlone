@@ -98,9 +98,12 @@ public sealed class DomainDiagnoser : IDomainDiagnoser
 
         // Different IPs can just be a different CDN edge. Only call it poisoned if the system's IP
         // demonstrably isn't this domain (wrong certificate or nothing listening).
-        var check = await _probe.TlsHandshakeAsync(system.Addresses[0], domain, fragmentClientHello: true, ct).ConfigureAwait(false);
+        var candidate = system.Addresses.FirstOrDefault(a => a.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork);
+        if (candidate is null)
+            return (true, "System DNS returns no usable IPv4 address — DNS poisoning.");
+        var check = await _probe.TlsHandshakeAsync(candidate, domain, fragmentClientHello: true, ct).ConfigureAwait(false);
         return check.Outcome is TlsOutcome.CertificateMismatch or TlsOutcome.ConnectFailed
-            ? (true, $"System DNS returns {system.Addresses[0]}, which isn't a real server for this domain — DNS poisoning.")
+            ? (true, $"System DNS returns {candidate}, which isn't a real server for this domain — DNS poisoning.")
             : (false, "System DNS answers with a different (but genuine) server.");
     }
 

@@ -41,6 +41,20 @@ public class DomainDiagnoserTests
     }
 
     [Fact]
+    public async Task DnsBlocked_WhenOnlyTheIpv6AnswerIsPoisoned()
+    {
+        // Observed for Steam content servers: the A record is real but AAAA is ::1, which apps try first.
+        _system.Answer(Domain, "104.83.198.104", "::1");
+        _doh.Answer(Domain, "104.83.198.104");
+        _probe.Server("104.83.198.104", 50, TlsOutcome.Ok, TlsOutcome.Ok);
+
+        var result = await Diagnose();
+
+        Assert.Equal(BlockKind.Dns, result.Kind);
+        Assert.Contains("::1", result.Detail);
+    }
+
+    [Fact]
     public async Task DnsBlocked_WhenSystemDnsReturnsNothing()
     {
         _system.Fail(Domain, "timeout");
