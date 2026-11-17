@@ -5,6 +5,11 @@ All notable changes to this project are documented here. Format loosely follows
 
 ## [Unreleased]
 
+### Added
+- **Version + "Check for updates"** at the bottom of the sidebar (and the version in the window
+  title). A manual check always reports its result — "You're up to date.", the new version, or the
+  error — while the startup / 24 h background checks stay silent.
+
 ## [0.3.0] — 2026-11-17
 
 ### Added

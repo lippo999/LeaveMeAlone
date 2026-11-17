@@ -32,6 +32,14 @@ public partial class MainWindow : Window
         LogPage.DataContext = logViewModel;
         _updateViewModel = updateViewModel;
         UpdateCard.DataContext = updateViewModel;
+        VersionRow.DataContext = updateViewModel;
+        if (!updateViewModel.CanUpdate)
+        {
+            // Dev builds (dotnet run) never update: show the version only.
+            VersionLine.Inlines.Remove(CheckSeparator);
+            VersionLine.Inlines.Remove(CheckLink);
+        }
+        Title = $"LeaveMeAlone {updateViewModel.VersionText}";
 
         ShowElevation(viewModel.IsElevated);
         StartupSwitch.IsChecked = StartupRegistration.IsEnabled();
@@ -70,6 +78,8 @@ public partial class MainWindow : Window
         if (page.RenderTransform is TranslateTransform slide)
             slide.BeginAnimation(TranslateTransform.YProperty, new DoubleAnimation(PageSlide, 0, PageFade) { EasingFunction = ease });
     }
+
+    private async void CheckForUpdates_Click(object sender, RoutedEventArgs e) => await _updateViewModel.CheckNowAsync();
 
     private async void Update_Click(object sender, RoutedEventArgs e) => await _updateViewModel.InstallAsync();
 

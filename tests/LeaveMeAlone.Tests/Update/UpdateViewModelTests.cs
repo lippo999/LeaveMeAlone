@@ -112,4 +112,66 @@ public class UpdateViewModelTests
         Assert.False(vm.HasUpdate);
         Assert.Empty(f.Http.Requested);
     }
+
+    [Fact]
+    public async Task Check_now_reports_up_to_date()
+    {
+        var f = new Fixture();
+        f.Http.Strings[UpdateSource.LatestReleaseApi] = Releases.Json("v0.2.0");
+        var vm = f.Create();
+
+        await vm.CheckNowAsync();
+
+        Assert.Equal("You're up to date.", vm.CheckStatus);
+        Assert.False(vm.HasUpdate);
+        Assert.True(vm.CanCheckNow); // link re-enabled afterwards
+    }
+
+    [Fact]
+    public async Task Check_now_shows_the_card_when_a_release_is_newer()
+    {
+        var f = new Fixture();
+        f.Http.Strings[UpdateSource.LatestReleaseApi] = Releases.Json("v0.3.0");
+        var vm = f.Create();
+
+        await vm.CheckNowAsync();
+
+        Assert.True(vm.HasUpdate);
+        Assert.Equal("0.3.0 is ready to install.", vm.CheckStatus);
+    }
+
+    [Fact]
+    public async Task Check_now_shows_the_error_instead_of_hiding_it()
+    {
+        var f = new Fixture();
+        f.Http.Failure = new HttpRequestException("offline");
+        var vm = f.Create();
+
+        await vm.CheckNowAsync();
+
+        Assert.Contains("offline", vm.CheckStatus);
+        Assert.True(vm.CanCheckNow);
+    }
+
+    [Fact]
+    public async Task Background_check_never_writes_the_check_status()
+    {
+        var f = new Fixture();
+        f.Http.Failure = new HttpRequestException("offline");
+        var vm = f.Create();
+
+        await vm.CheckAsync();
+
+        Assert.Equal("", vm.CheckStatus);
+    }
+
+    [Fact]
+    public void Version_text_shows_the_running_version()
+    {
+        var f = new Fixture();
+
+        Assert.Equal("v0.2.0", f.Create().VersionText);
+        Assert.Equal("v0.2.0 (dev build)", f.Create(canInstall: false).VersionText);
+        Assert.False(f.Create(canInstall: false).CanCheckNow);
+    }
 }

@@ -90,6 +90,29 @@
                         <Ellipse x:Name="AdminDot" Width="7" Height="7" VerticalAlignment="Center"/>
                         <TextBlock x:Name="AdminText" Style="{StaticResource Muted}" FontSize="11" Margin="8,0,0,0"/>
                     </StackPanel>
+
+                    <!-- Version + manual update check -->
+                    <StackPanel x:Name="VersionRow" Margin="8,6,0,0">
+                        <TextBlock x:Name="VersionLine" FontSize="11" Foreground="{StaticResource TextFaint}">
+                            <Run Text="{Binding VersionText, Mode=OneWay}"/>
+                            <Run x:Name="CheckSeparator" Text=" · "/>
+                            <Hyperlink x:Name="CheckLink" Click="CheckForUpdates_Click" Foreground="{StaticResource TextMuted}"
+                                       IsEnabled="{Binding CanCheckNow}" AutomationProperties.Name="Check for updates">
+                                <Run Text="Check for updates"/>
+                            </Hyperlink>
+                        </TextBlock>
+                        <TextBlock Text="{Binding CheckStatus}" FontSize="11" TextWrapping="Wrap" Margin="0,3,0,0">
+                            <TextBlock.Style>
+                                <Style TargetType="TextBlock" BasedOn="{StaticResource Muted}">
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding CheckStatus}" Value="">
+                                            <Setter Property="Visibility" Value="Collapsed"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </TextBlock.Style>
+                        </TextBlock>
+                    </StackPanel>
                 </StackPanel>
 
                 <!-- Navigation: the two features, side by side as equals -->
