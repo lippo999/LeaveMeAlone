@@ -59,6 +59,9 @@ Install SDK if needed: `winget install Microsoft.DotNet.SDK.8`.
 - **`AppLog`** (Services): in-memory ring + daily files in `%APPDATA%\LeaveMeAlone\logs`. View
   models log every `StatusMessage` (errors with details); `ProcessRunner` logs every command.
 - **`Platform.cs`** (Services): elevation helpers + `StartupRegistration` (HKCU Run key).
+- **Updates** (Services/Update): only the published single-file exe updates itself. Restart order
+  matters: `App.RestartInto` → `Shutdown()` → `OnExit` releases relays + hosts lines → *then*
+  starts the new exe with `--updated-from <pid>`, which waits for the old process to exit.
 
 ## Conventions
 
@@ -84,6 +87,12 @@ src/LeaveMeAlone/
   Services/Platform.cs               elevation + StartupRegistration
   Services/QuickBlock.cs             maps detected launchers ↔ bundles for the Quick block switches
   Services/AppLog.cs                 activity log (memory + daily files)
+  Services/Update/                   self-update from GitHub Releases (latest stable v* tag):
+    UpdateModels.cs                    AvailableUpdate, IUpdateHttp seam, UpdateSource (repo + asset names)
+    UpdateChecker.cs                   latest-release JSON → newer version? + SHA-256 file parser
+    UpdateInstaller.cs                 download → verify → rename-swap (exe.old) with rollback + cleanup
+    GitHubUpdateHttp.cs                HttpClient impl (User-Agent, timeouts)
+  UpdateViewModels.cs                UpdateViewModel (sidebar "update available" card)
   Services/JsonFile.cs               shared atomic JSON load/save
   Services/Unblock/                  domain unblocking (ISP DNS poisoning / SNI filtering) —
                                      design doc: docs/domain-unblock.md

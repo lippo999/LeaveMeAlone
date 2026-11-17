@@ -1,7 +1,10 @@
+using System.Diagnostics;
 using System.IO;
 using System.Windows;
+using System.Windows.Threading;
 using LeaveMeAlone.Services;
 using LeaveMeAlone.Services.Unblock;
+using LeaveMeAlone.Services.Update;
 using LeaveMeAlone.ViewModels;
 using LeaveMeAlone.Views;
 
@@ -20,12 +23,15 @@ public partial class App : Application
             return;
         }
 
+        WaitForPreviousInstance(e.Args);
         MigrateFromLegacyName();
 
         var log = new AppLog(AppLog.DefaultDirectory);
         WatchCrashes(log);
         log.Info("App", $"LeaveMeAlone {typeof(App).Assembly.GetName().Version} started " +
                         $"({(Platform.IsElevated() ? "administrator" : "read-only, not administrator")}).");
+
+        var updateViewModel = CreateUpdater(log);
 
         var runner = new ProcessRunner(log);
         var firewall = new PowerShellFirewallService(runner);
@@ -42,12 +48,95 @@ public partial class App : Application
         var unblockViewModel = new UnblockViewModel(_unblock, Platform.IsElevated(), log);
         var logViewModel = new LogViewModel(log, action => Dispatcher.BeginInvoke(action));
 
-        var window = new MainWindow(viewModel, unblockViewModel, logViewModel);
+        var window = new MainWindow(viewModel, unblockViewModel, logViewModel, updateViewModel);
         MainWindow = window;
         window.Show();
 
         _tray = new TrayIcon(window, viewModel);
         _ = RestoreUnblocksAsync(unblockViewModel, viewModel);
+        StartUpdateChecks(updateViewModel);
+    }
+
+    private const string UpdatedFromArg = "--updated-from";
+    private static readonly TimeSpan PreviousInstanceTimeout = TimeSpan.FromSeconds(15);
+    private static readonly TimeSpan UpdateCheckInterval = TimeSpan.FromHours(24);
+
+    private GitHubUpdateHttp? _updateHttp;
+    private DispatcherTimer? _updateTimer;
+    private string? _restartInto;
+
+    // Only a published single-file exe updates itself; under `dotnet run` the "exe" is a build output.
+    private UpdateViewModel CreateUpdater(AppLog log)
+    {
+        var version = typeof(App).Assembly.GetName().Version ?? new Version(0, 0);
+        var exePath = Environment.ProcessPath;
+#pragma warning disable IL3000 // Location is empty exactly when running as a single-file bundle — that's the check.
+        var isPublished = string.IsNullOrEmpty(typeof(App).Assembly.Location) && exePath != null;
+#pragma warning restore IL3000
+
+        _updateHttp = new GitHubUpdateHttp(version);
+        UpdateInstaller? installer = null;
+        if (isPublished)
+        {
+            installer = new UpdateInstaller(_updateHttp, exePath!);
+            if (UpdateInstaller.CleanupLeftovers(exePath!) > 0) log.Info("Update", $"Updated to {UpdateSource.Display(version)}.");
+        }
+        else
+        {
+            log.Debug("Update", "Development build: automatic updates are off.");
+        }
+        return new UpdateViewModel(new UpdateChecker(_updateHttp, version), installer, RestartInto, log);
+    }
+
+    private void StartUpdateChecks(UpdateViewModel updates)
+    {
+        _ = updates.CheckAsync();
+        _updateTimer = new DispatcherTimer { Interval = UpdateCheckInterval };
+        _updateTimer.Tick += async (_, _) => await updates.CheckAsync();
+        _updateTimer.Start();
+    }
+
+    // The new exe is started from OnExit, after relays and hosts lines are released, so the two
+    // instances never fight over 127.77.0.x:443 or the hosts file.
+    private void RestartInto(string exePath)
+    {
+        _restartInto = exePath;
+        Shutdown();
+    }
+
+    private void LaunchUpdatedExe()
+    {
+        if (_restartInto is null) return;
+        try
+        {
+            // Inherits this process's administrator token, so no second UAC prompt.
+            var start = new ProcessStartInfo(_restartInto) { UseShellExecute = false };
+            start.ArgumentList.Add(UpdatedFromArg);
+            start.ArgumentList.Add(Environment.ProcessId.ToString());
+            Process.Start(start);
+        }
+        catch (Exception ex) when (ex is System.ComponentModel.Win32Exception or InvalidOperationException)
+        {
+            MessageBox.Show($"The update was installed but the app couldn't restart itself:\n{ex.Message}\n\n" +
+                            "Start LeaveMeAlone again to use the new version.",
+                            "LeaveMeAlone", MessageBoxButton.OK, MessageBoxImage.Information);
+        }
+    }
+
+    // Started by an update: let the old instance finish exiting (it was releasing relays and the hosts file).
+    private static void WaitForPreviousInstance(string[] args)
+    {
+        var i = Array.IndexOf(args, UpdatedFromArg);
+        if (i < 0 || i + 1 >= args.Length || !int.TryParse(args[i + 1], out var pid)) return;
+        try
+        {
+            using var previous = Process.GetProcessById(pid);
+            previous.WaitForExit(PreviousInstanceTimeout);
+        }
+        catch (ArgumentException)
+        {
+            // Already gone.
+        }
     }
 
     // Unexpected exceptions go to the log file before anything else happens, so a crash leaves a trace.
@@ -88,8 +177,11 @@ public partial class App : Application
 
     protected override void OnExit(ExitEventArgs e)
     {
+        _updateTimer?.Stop();
         _tray?.Dispose();
         ShutdownUnblocks();
+        _updateHttp?.Dispose();
+        LaunchUpdatedExe();
         base.OnExit(e);
     }
 

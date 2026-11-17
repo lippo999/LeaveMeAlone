@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Windows;
 using System.Windows.Controls.Primitives;
 using System.Windows.Media;
@@ -14,8 +15,10 @@ public partial class MainWindow : Window
     private const double PageSlide = 10;
 
     private readonly MainViewModel _viewModel;
+    private readonly UpdateViewModel _updateViewModel;
 
-    public MainWindow(MainViewModel viewModel, UnblockViewModel unblockViewModel, LogViewModel logViewModel)
+    public MainWindow(MainViewModel viewModel, UnblockViewModel unblockViewModel, LogViewModel logViewModel,
+        UpdateViewModel updateViewModel)
     {
         InitializeComponent();
         WindowTheme.UseDarkCaption(this);
@@ -27,6 +30,8 @@ public partial class MainWindow : Window
         UnblockPage.DataContext = unblockViewModel;
         NavLogs.DataContext = logViewModel;
         LogPage.DataContext = logViewModel;
+        _updateViewModel = updateViewModel;
+        UpdateCard.DataContext = updateViewModel;
 
         ShowElevation(viewModel.IsElevated);
         StartupSwitch.IsChecked = StartupRegistration.IsEnabled();
@@ -64,6 +69,21 @@ public partial class MainWindow : Window
         page.BeginAnimation(OpacityProperty, new DoubleAnimation(0, 1, PageFade) { EasingFunction = ease });
         if (page.RenderTransform is TranslateTransform slide)
             slide.BeginAnimation(TranslateTransform.YProperty, new DoubleAnimation(PageSlide, 0, PageFade) { EasingFunction = ease });
+    }
+
+    private async void Update_Click(object sender, RoutedEventArgs e) => await _updateViewModel.InstallAsync();
+
+    private void ReleaseNotes_Click(object sender, RoutedEventArgs e)
+    {
+        if (_updateViewModel.ReleasePage is not { } page) return;
+        try
+        {
+            Process.Start(new ProcessStartInfo(page.AbsoluteUri) { UseShellExecute = true });
+        }
+        catch (System.ComponentModel.Win32Exception ex)
+        {
+            _updateViewModel.StatusMessage = $"Couldn't open the browser: {ex.Message}";
+        }
     }
 
     private void Startup_Click(object sender, RoutedEventArgs e)

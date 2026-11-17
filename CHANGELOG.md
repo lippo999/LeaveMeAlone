@@ -5,6 +5,14 @@ All notable changes to this project are documented here. Format loosely follows
 
 ## [Unreleased]
 
+### Added
+- **Automatic updates**: on launch (and every 24 h) the app asks GitHub for the latest stable
+  release. When a newer one exists the sidebar shows an *Update & restart* card; nothing installs
+  without a click. The new exe is downloaded next to the current one, checked against the release's
+  `LeaveMeAlone.exe.sha256`, swapped in (running exe renamed to `.old`, rolled back on failure),
+  and started only after the old instance has released its relays and hosts lines. Drafts,
+  pre-releases and `nightly` are never offered; `dotnet run` builds never update themselves.
+
 ### Fixed
 - **Steam store loaded without styles/scripts** (`jQuery is not defined`, TLS resets in `cef_log`):
   Steam now serves assets from `*.fastly.steamstatic.com`, which the preset did not list. The
