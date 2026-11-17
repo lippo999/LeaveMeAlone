@@ -5,6 +5,8 @@ All notable changes to this project are documented here. Format loosely follows
 
 ## [Unreleased]
 
+## [0.4.0] — 2026-11-17
+
 ### Added
 - **Steam "Scan & fix"** (Unblock → Quick): finds blocked Steam servers the presets don't list yet —
   from the Windows DNS cache (names answered with a bogus address), Steam's own logs and the live
