@@ -5,6 +5,8 @@ All notable changes to this project are documented here. Format loosely follows
 
 ## [Unreleased]
 
+## [0.4.1] — 2026-11-17
+
 ### Fixed
 - **Start with Windows** now actually starts the app after a reboot. It used the HKCU Run key,
   which Windows silently skips for apps that require administrator. The setting is now a Task
