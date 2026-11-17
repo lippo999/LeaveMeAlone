@@ -5,6 +5,13 @@ All notable changes to this project are documented here. Format loosely follows
 
 ## [Unreleased]
 
+### Fixed
+- **Steam store loaded without styles/scripts** (`jQuery is not defined`, TLS resets in `cef_log`):
+  Steam now serves assets from `*.fastly.steamstatic.com`, which the preset did not list. The
+  Steam preset now covers all three static CDNs (akamai / fastly / cloudflare) plus chat, s.team,
+  workshop (`*.steamusercontent.com`), legacy `*-a.akamaihd.net` and valvesoftware hosts — 35
+  hosts the ISP was poisoning. Steam downloads gains the `client-update.*` hosts.
+
 ### Added
 - **New UI**: one window, sidebar with **Block** and **Unblock** as equal pages (each shows its live
   status), every page split into **Quick** (one switch per launcher / Steam preset) and **Custom**

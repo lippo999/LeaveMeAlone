@@ -49,7 +49,8 @@ Mở bằng nút **Unblock domains** ở header cửa sổ chính.
 | **Diagnose** (hoặc Enter) | Cho biết tên miền đang bình thường, bị chặn DNS, bị chặn SNI, bị cả hai, hay bị chặn kiểu khác. Không cần quyền admin. |
 | Bảng **Real IPs, fastest first** | Các IP thật xếp theo độ trễ TCP, kèm kết quả TLS của từng IP (xanh = dùng được). |
 | **Unblock** | App tự chọn cách mở phù hợp với kiểu chặn vừa phát hiện. |
-| **Quick: Steam** | Chẩn đoán 11 tên miền của Steam, chỉ mở những tên miền thật sự bị chặn. |
+| **Quick: Steam** | Chẩn đoán 44 tên miền web của Steam (store, community, chat, workshop, và tài nguyên tĩnh trên cả 3 CDN `*.akamai/fastly/cloudflare.steamstatic.com`), chỉ mở những tên miền thật sự bị chặn. |
+| **Quick: Steam downloads** | Server tải game (`*.steamcontent.com` gần VN) + máy chủ cập nhật Steam client (`client-update.*`). |
 | Danh sách **Unblocked now** | Tên miền nào đang mở, bằng cách nào (`DNS PIN` / `SNI RELAY`), qua IP nào, relay còn chạy không. |
 | **Remove** / **Remove all** | Gỡ một hoặc tất cả; trả hệ thống về như cũ. |
 

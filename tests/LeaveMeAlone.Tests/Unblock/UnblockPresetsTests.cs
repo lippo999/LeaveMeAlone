@@ -17,6 +17,37 @@ public class UnblockPresetsTests
     }
 
     [Fact]
+    public void All_lists_every_preset_and_no_domain_is_shared_between_presets()
+    {
+        Assert.Equal(new[] { UnblockPresets.Steam, UnblockPresets.SteamDownloads }, UnblockPresets.All);
+
+        var all = UnblockPresets.All.SelectMany(p => p.Domains).ToList();
+        Assert.Equal(all.Count, all.Distinct().Count());
+    }
+
+    [Fact]
+    public void Steam_covers_every_static_asset_cdn_the_store_page_uses()
+    {
+        var domains = UnblockPresets.Steam.Domains;
+
+        foreach (var cdn in new[] { "akamai", "fastly", "cloudflare" })
+        foreach (var kind in new[] { "store", "community", "shared", "cdn", "avatars", "clan", "video" })
+            Assert.Contains($"{kind}.{cdn}.steamstatic.com", domains);
+        Assert.Contains("steam-chat.com", domains);
+        Assert.Contains("cdn.steamusercontent.com", domains);
+    }
+
+    [Fact]
+    public void SteamDownloads_includes_client_update_hosts()
+    {
+        var domains = UnblockPresets.SteamDownloads.Domains;
+
+        Assert.Contains("client-update.steamstatic.com", domains);
+        Assert.Contains("client-update.fastly.steamstatic.com", domains);
+        Assert.Contains("client-update.akamai.steamstatic.com", domains);
+    }
+
+    [Fact]
     public void SteamDownloads_covers_every_nearby_cache_server()
     {
         var domains = UnblockPresets.SteamDownloads.Domains;
