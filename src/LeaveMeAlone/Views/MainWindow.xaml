@@ -30,8 +30,49 @@
                     </StackPanel>
                 </StackPanel>
 
-                <!-- Footer: autostart + admin state -->
+                <!-- Footer: update notice + autostart + admin state -->
                 <StackPanel DockPanel.Dock="Bottom">
+                    <Border x:Name="UpdateCard" CornerRadius="12" Padding="14,12" Margin="0,0,0,10"
+                            Background="{StaticResource SignalSoft}" BorderBrush="{StaticResource SignalLine}" BorderThickness="1"
+                            Visibility="{Binding HasUpdate, Converter={StaticResource BoolToVis}}">
+                        <StackPanel>
+                            <TextBlock Text="UPDATE" Style="{StaticResource Eyebrow}" Foreground="{StaticResource Signal}"/>
+                            <TextBlock Text="{Binding Title}" Foreground="{StaticResource Text}" FontSize="13"
+                                       FontWeight="SemiBold" TextWrapping="Wrap" Margin="0,4,0,0"/>
+                            <TextBlock Style="{StaticResource Muted}" FontSize="11" Margin="0,2,0,0">
+                                <Run Text="{Binding Subtitle, Mode=OneWay}"/>
+                                <Run Text=" · "/>
+                                <Hyperlink Click="ReleaseNotes_Click" Foreground="{StaticResource Signal}">What's new</Hyperlink>
+                            </TextBlock>
+                            <Button Click="Update_Click" Margin="0,10,0,0" HorizontalAlignment="Stretch"
+                                    AutomationProperties.Name="Update and restart">
+                                <Button.Style>
+                                    <Style TargetType="Button" BasedOn="{StaticResource BtnPrimary}">
+                                        <Setter Property="Content" Value="Update &amp; restart"/>
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding Busy}" Value="True">
+                                                <Setter Property="Content" Value="Downloading…"/>
+                                                <Setter Property="IsEnabled" Value="False"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </Button.Style>
+                            </Button>
+                            <TextBlock Text="{Binding StatusMessage}" FontSize="11"
+                                       TextWrapping="Wrap" Margin="0,8,0,0">
+                                <TextBlock.Style>
+                                    <Style TargetType="TextBlock" BasedOn="{StaticResource Muted}">
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding StatusMessage}" Value="">
+                                                <Setter Property="Visibility" Value="Collapsed"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </TextBlock.Style>
+                            </TextBlock>
+                        </StackPanel>
+                    </Border>
+
                     <Border CornerRadius="12" Padding="14,12" Background="{StaticResource Surface}"
                             BorderBrush="{StaticResource Line}" BorderThickness="1">
                         <DockPanel>
@@ -48,6 +89,29 @@
                     <StackPanel Orientation="Horizontal" Margin="8,14,0,0">
                         <Ellipse x:Name="AdminDot" Width="7" Height="7" VerticalAlignment="Center"/>
                         <TextBlock x:Name="AdminText" Style="{StaticResource Muted}" FontSize="11" Margin="8,0,0,0"/>
+                    </StackPanel>
+
+                    <!-- Version + manual update check -->
+                    <StackPanel x:Name="VersionRow" Margin="8,6,0,0">
+                        <TextBlock x:Name="VersionLine" FontSize="11" Foreground="{StaticResource TextFaint}">
+                            <Run Text="{Binding VersionText, Mode=OneWay}"/>
+                            <Run x:Name="CheckSeparator" Text=" · "/>
+                            <Hyperlink x:Name="CheckLink" Click="CheckForUpdates_Click" Foreground="{StaticResource TextMuted}"
+                                       IsEnabled="{Binding CanCheckNow}" AutomationProperties.Name="Check for updates">
+                                <Run Text="Check for updates"/>
+                            </Hyperlink>
+                        </TextBlock>
+                        <TextBlock Text="{Binding CheckStatus}" FontSize="11" TextWrapping="Wrap" Margin="0,3,0,0">
+                            <TextBlock.Style>
+                                <Style TargetType="TextBlock" BasedOn="{StaticResource Muted}">
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding CheckStatus}" Value="">
+                                            <Setter Property="Visibility" Value="Collapsed"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </TextBlock.Style>
+                        </TextBlock>
                     </StackPanel>
                 </StackPanel>
 

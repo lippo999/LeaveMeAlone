@@ -5,6 +5,30 @@ All notable changes to this project are documented here. Format loosely follows
 
 ## [Unreleased]
 
+### Added
+- **Steam "Scan & fix"** (Unblock → Quick): finds blocked Steam servers the presets don't list yet —
+  from the Windows DNS cache (names answered with a bogus address), Steam's own logs and the live
+  store/community pages — diagnoses them and lets the user tick which to unblock. Strictly Steam-only:
+  every candidate must pass the `SteamDomains` allowlist, so other sites are never touched. Findings
+  are logged with their source so they can be added to the presets.
+
+## [0.3.1] — 2026-11-17
+
+### Added
+- **Version + "Check for updates"** at the bottom of the sidebar (and the version in the window
+  title). A manual check always reports its result — "You're up to date.", the new version, or the
+  error — while the startup / 24 h background checks stay silent.
+
+## [0.3.0] — 2026-11-17
+
+### Added
+- **Automatic updates**: on launch (and every 24 h) the app asks GitHub for the latest stable
+  release. When a newer one exists the sidebar shows an *Update & restart* card; nothing installs
+  without a click. The new exe is downloaded next to the current one, checked against the release's
+  `LeaveMeAlone.exe.sha256`, swapped in (running exe renamed to `.old`, rolled back on failure),
+  and started only after the old instance has released its relays and hosts lines. Drafts,
+  pre-releases and `nightly` are never offered; `dotnet run` builds never update themselves.
+
 ### Fixed
 - **Steam store loaded without styles/scripts** (`jQuery is not defined`, TLS resets in `cef_log`):
   Steam now serves assets from `*.fastly.steamstatic.com`, which the preset did not list. The
