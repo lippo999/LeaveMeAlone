@@ -5,6 +5,8 @@ All notable changes to this project are documented here. Format loosely follows
 
 ## [Unreleased]
 
+## [0.3.0] — 2026-11-17
+
 ### Added
 - **Automatic updates**: on launch (and every 24 h) the app asks GitHub for the latest stable
   release. When a newer one exists the sidebar shows an *Update & restart* card; nothing installs
