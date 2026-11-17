@@ -3,6 +3,8 @@ using System.Windows.Controls;
 using System.Windows.Media;
 using LeaveMeAlone.Models;
 using LeaveMeAlone.Services;
+using LeaveMeAlone.Services.Unblock;
+using LeaveMeAlone.Services.Unblock.Scan;
 
 namespace LeaveMeAlone.Views;
 
@@ -145,6 +147,63 @@ public static class Dialogs
         window.Content = root;
         return window.ShowDialog() == true ? result : null;
     }
+
+    /// <summary>Lets the user pick which blocked Steam servers found by a scan get unblocked (all checked by default).</summary>
+    public static IReadOnlyList<ScanFinding>? PromptScanFindings(Window owner, IReadOnlyList<ScanFinding> findings)
+    {
+        var window = NewDialog(owner, "Blocked Steam servers found", 600, 500);
+        var root = new DockPanel { Margin = new Thickness(20) };
+
+        var header = Label($"{findings.Count} Steam server(s) are blocked on this network and aren't rerouted yet. " +
+                           "Check the ones to fix — only these hosts are changed:");
+        DockPanel.SetDock(header, Dock.Top);
+        root.Children.Add(header);
+
+        var checks = new List<(CheckBox box, ScanFinding finding)>();
+        var list = new StackPanel { Margin = new Thickness(0, 12, 0, 0) };
+        foreach (var finding in findings)
+        {
+            var box = new CheckBox
+            {
+                IsChecked = true,
+                Margin = new Thickness(0, 3, 0, 3),
+                Content = new StackPanel
+                {
+                    Children =
+                    {
+                        new TextBlock { Text = finding.Domain, Foreground = Brush("Text") },
+                        new TextBlock
+                        {
+                            Text = $"{ScanKindLabel(finding.Diagnosis)} · found in {string.Join(", ", finding.Sources)}",
+                            Foreground = Brush("TextFaint"),
+                            FontSize = 11.5,
+                        },
+                    },
+                },
+            };
+            checks.Add((box, finding));
+            list.Children.Add(box);
+        }
+
+        IReadOnlyList<ScanFinding>? result = null;
+        var buttons = ButtonRow(
+            ("Fix selected", true, () =>
+            {
+                result = checks.Where(c => c.box.IsChecked == true).Select(c => c.finding).ToList();
+                window.DialogResult = true;
+            }),
+            ("Cancel", false, () => window.DialogResult = false));
+        DockPanel.SetDock(buttons, Dock.Bottom);
+        root.Children.Add(buttons);
+        root.Children.Add(new ScrollViewer { VerticalScrollBarVisibility = ScrollBarVisibility.Auto, Content = list });
+
+        window.Content = root;
+        return window.ShowDialog() == true ? result : null;
+    }
+
+    private static string ScanKindLabel(DomainDiagnosis d) => d.SniBlocked
+        ? "SNI filtered → local relay"
+        : "DNS poisoned → pin real IP";
 
     // ----- shared helpers -----
 

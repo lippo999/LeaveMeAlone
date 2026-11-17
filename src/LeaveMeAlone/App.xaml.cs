@@ -1,7 +1,9 @@
 using System.IO;
+using System.Net.Http;
 using System.Windows;
 using LeaveMeAlone.Services;
 using LeaveMeAlone.Services.Unblock;
+using LeaveMeAlone.Services.Unblock.Scan;
 using LeaveMeAlone.ViewModels;
 using LeaveMeAlone.Views;
 
@@ -39,7 +41,7 @@ public partial class App : Application
             new WindowsHostsFile(runner),
             new DomainDiagnoser(new SystemDnsResolver(), new DohResolver(), new ConnectivityProbe()),
             _relay);
-        var unblockViewModel = new UnblockViewModel(_unblock, Platform.IsElevated(), log);
+        var unblockViewModel = new UnblockViewModel(_unblock, Platform.IsElevated(), log, NewSteamScanner(_unblock, runner));
         var logViewModel = new LogViewModel(log, action => Dispatcher.BeginInvoke(action));
 
         var window = new MainWindow(viewModel, unblockViewModel, logViewModel);
@@ -49,6 +51,21 @@ public partial class App : Application
         _tray = new TrayIcon(window, viewModel);
         _ = RestoreUnblocksAsync(unblockViewModel, viewModel);
     }
+
+    // Discovery sources for "Scan & fix"; everything they return is limited to Steam domains.
+    private static SteamScanner NewSteamScanner(UnblockManager unblock, IProcessRunner runner)
+    {
+        var http = new HttpClient { Timeout = PageFetchTimeout };
+        http.DefaultRequestHeaders.UserAgent.ParseAdd("Mozilla/5.0 (Windows NT 10.0; Win64; x64) LeaveMeAlone");
+        return new SteamScanner(unblock, new IDomainSource[]
+        {
+            new DnsCacheSource(runner), // first: unblocking flushes the cache
+            new SteamLogSource(SteamLogSource.FindSteamDirectory),
+            new SteamPageSource(http),
+        });
+    }
+
+    private static readonly TimeSpan PageFetchTimeout = TimeSpan.FromSeconds(15);
 
     // Unexpected exceptions go to the log file before anything else happens, so a crash leaves a trace.
     private void WatchCrashes(AppLog log)

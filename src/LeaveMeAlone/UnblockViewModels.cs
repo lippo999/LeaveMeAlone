@@ -1,6 +1,7 @@
 using System.Collections.ObjectModel;
 using LeaveMeAlone.Services;
 using LeaveMeAlone.Services.Unblock;
+using LeaveMeAlone.Services.Unblock.Scan;
 
 namespace LeaveMeAlone.ViewModels;
 
@@ -79,19 +80,34 @@ public sealed class UnblockPresetViewModel : ObservableObject
 public sealed class UnblockViewModel : GuardedViewModel
 {
     private readonly UnblockManager _manager;
+    private readonly SteamScanner? _scanner;
+    private readonly AppLog? _log;
     private DomainDiagnosis? _diagnosis;
     private string _domainInput = "";
+    private string _scanNote = "";
 
-    public UnblockViewModel(UnblockManager manager, bool isElevated, AppLog? log = null)
+    public UnblockViewModel(UnblockManager manager, bool isElevated, AppLog? log = null, SteamScanner? scanner = null)
         : base(log, "Unblock")
     {
         _manager = manager;
+        _scanner = scanner;
+        _log = log;
         IsElevated = isElevated;
         foreach (var preset in UnblockPresets.All)
             Presets.Add(new UnblockPresetViewModel(preset));
     }
 
     public bool IsElevated { get; }
+    public bool CanScan => IsElevated && _scanner != null;
+
+    /// <summary>Progress or outcome of the last Steam scan, shown on its card.</summary>
+    public string ScanNote
+    {
+        get => _scanNote;
+        private set { if (Set(ref _scanNote, value)) OnPropertyChanged(nameof(HasScanNote)); }
+    }
+
+    public bool HasScanNote => ScanNote.Length > 0;
     public ObservableCollection<UnblockPresetViewModel> Presets { get; } = new();
     public ObservableCollection<UnblockedDomainViewModel> Active { get; } = new();
 
@@ -186,6 +202,65 @@ public sealed class UnblockViewModel : GuardedViewModel
                             (failed.Count > 0 ? $", failed: {string.Join("; ", failed)}" : ".");
         }, "Preset failed");
         Reload();
+    }
+
+    /// <summary>
+    /// "Scan &amp; fix": finds blocked Steam servers beyond the presets (Steam logs, store pages, DNS cache),
+    /// asks <paramref name="confirm"/> which to fix (null = cancel), then unblocks the chosen ones.
+    /// Only Steam domains are ever considered — see <see cref="SteamDomains"/>.
+    /// </summary>
+    public Task ScanSteamAsync(Func<IReadOnlyList<ScanFinding>, IReadOnlyList<ScanFinding>?> confirm) => RunGuardedAsync(async () =>
+    {
+        RequireElevation();
+        var scanner = _scanner ?? throw new UnblockException("scanning isn't available.");
+        var result = await scanner.ScanAsync(new Progress<string>(note => ScanNote = note));
+        LogScan(result);
+
+        if (result.Blocked.Count == 0)
+        {
+            ScanNote = $"Checked {result.Checked} Steam servers — nothing else is blocked.";
+            StatusMessage = "Steam scan: " + ScanNote;
+            return;
+        }
+
+        var chosen = confirm(result.Blocked);
+        if (chosen is null || chosen.Count == 0)
+        {
+            ScanNote = $"Found {result.Blocked.Count} blocked Steam server(s); nothing changed.";
+            return;
+        }
+        await ApplyFindingsAsync(chosen);
+    }, "Steam scan failed");
+
+    private async Task ApplyFindingsAsync(IReadOnlyList<ScanFinding> chosen)
+    {
+        var failed = new List<string>();
+        try
+        {
+            foreach (var (finding, i) in chosen.Select((f, i) => (f, i)))
+            {
+                ScanNote = $"Unblocking {i + 1} of {chosen.Count}: {finding.Domain}…";
+                try { await _manager.UnblockAsync(finding.Diagnosis); }
+                catch (UnblockException ex) { failed.Add($"{finding.Domain} ({ex.Message})"); }
+            }
+        }
+        finally
+        {
+            Reload();
+        }
+        ScanNote = $"Unblocked {chosen.Count - failed.Count} Steam server(s)" +
+                   (failed.Count > 0 ? $", {failed.Count} failed." : ".");
+        StatusMessage = "Steam scan: " + ScanNote + (failed.Count > 0 ? $" Failed: {string.Join("; ", failed)}" : "");
+    }
+
+    // Findings go to the log with their sources, so new hosts can be added to the presets later.
+    private void LogScan(ScanResult result)
+    {
+        var details = string.Join("\n", result.Blocked.Select(f =>
+            $"{f.Domain}  {KindLabel(f.Diagnosis.Kind)}  via {string.Join(", ", f.Sources)}"));
+        if (result.Problems.Count > 0)
+            details += (details.Length > 0 ? "\n" : "") + "problems:\n" + string.Join("\n", result.Problems);
+        _log?.Info("Unblock", $"Steam scan checked {result.Checked} servers, {result.Blocked.Count} blocked.", details);
     }
 
     private async Task RemovePresetAsync(UnblockPresetViewModel row)
