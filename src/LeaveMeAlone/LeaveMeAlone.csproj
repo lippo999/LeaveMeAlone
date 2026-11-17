@@ -11,7 +11,7 @@
     <AssemblyName>LeaveMeAlone</AssemblyName>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <ApplicationIcon>Assets\app.ico</ApplicationIcon>
-    <Version>0.3.0</Version>
+    <Version>0.3.1</Version>
     <!-- Allows `dotnet restore` to run on non-Windows hosts; building WPF still requires Windows. -->
     <EnableWindowsTargeting>true</EnableWindowsTargeting>
   </PropertyGroup>
