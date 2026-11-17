@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.IO;
 using System.Net.Http;
+using System.Security.Principal;
 using System.Windows;
 using System.Windows.Threading;
 using LeaveMeAlone.Services;
@@ -50,7 +51,9 @@ public partial class App : Application
         var unblockViewModel = new UnblockViewModel(_unblock, Platform.IsElevated(), log, NewSteamScanner(_unblock, runner));
         var logViewModel = new LogViewModel(log, action => Dispatcher.BeginInvoke(action));
 
-        var window = new MainWindow(viewModel, unblockViewModel, logViewModel, updateViewModel);
+        var startup = new StartupRegistration(runner, new RegistryRunKey(),
+            Environment.ProcessPath ?? "", WindowsIdentity.GetCurrent().Name);
+        var window = new MainWindow(viewModel, unblockViewModel, logViewModel, updateViewModel, startup);
         MainWindow = window;
         window.Show();
 
@@ -167,16 +170,8 @@ public partial class App : Application
     // The app used to be called "Firewall Bundle Blocker"; carry its data and autostart over.
     private static void MigrateFromLegacyName()
     {
+        // The old autostart entry is moved by StartupRegistration.InitializeAsync.
         var warning = JsonFile.MigrateLegacyAppData();
-        try
-        {
-            StartupRegistration.MigrateLegacy();
-        }
-        catch (Exception ex) when (ex is UnauthorizedAccessException or System.Security.SecurityException or IOException)
-        {
-            warning = (warning is null ? "" : warning + "\n\n") + $"Couldn't update the 'Start with Windows' entry: {ex.Message}";
-        }
-
         if (warning != null)
             MessageBox.Show(warning, "LeaveMeAlone", MessageBoxButton.OK, MessageBoxImage.Warning);
     }

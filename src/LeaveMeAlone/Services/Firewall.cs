@@ -187,17 +187,8 @@ public sealed class PowerShellFirewallService : IFirewallService
 
     private async Task<ProcessResult> RunScriptAsync(string script, CancellationToken ct)
     {
-        // Wrap so a failing cmdlet produces a non-zero exit code with a readable message.
-        var wrapped = "$ErrorActionPreference='Stop'; try { " + script +
-                      "; exit 0 } catch { [Console]::Error.WriteLine($_.Exception.Message); exit 1 }";
-        var args = $"-NoProfile -NonInteractive -ExecutionPolicy Bypass -Command \"{wrapped.Replace("\"", "\\\"")}\"";
-
-        var result = await _runner.RunAsync("powershell.exe", args, ct).ConfigureAwait(false);
-        if (result.ExitCode != 0)
-        {
-            var message = string.IsNullOrWhiteSpace(result.StdErr) ? result.StdOut : result.StdErr;
-            throw new FirewallException(message.Trim());
-        }
+        var result = await PowerShellScript.RunAsync(_runner, script, ct).ConfigureAwait(false);
+        if (result.ExitCode != 0) throw new FirewallException(PowerShellScript.ErrorText(result));
         return result;
     }
 

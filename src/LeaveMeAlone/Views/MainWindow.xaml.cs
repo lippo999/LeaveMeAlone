@@ -16,9 +16,10 @@ public partial class MainWindow : Window
 
     private readonly MainViewModel _viewModel;
     private readonly UpdateViewModel _updateViewModel;
+    private readonly StartupRegistration _startup;
 
     public MainWindow(MainViewModel viewModel, UnblockViewModel unblockViewModel, LogViewModel logViewModel,
-        UpdateViewModel updateViewModel)
+        UpdateViewModel updateViewModel, StartupRegistration startup)
     {
         InitializeComponent();
         WindowTheme.UseDarkCaption(this);
@@ -42,9 +43,10 @@ public partial class MainWindow : Window
         Title = $"LeaveMeAlone {updateViewModel.VersionText}";
 
         ShowElevation(viewModel.IsElevated);
-        StartupSwitch.IsChecked = StartupRegistration.IsEnabled();
+        _startup = startup;
 
         Loaded += async (_, _) => await BlockPage.InitializeAsync();
+        Loaded += async (_, _) => await LoadStartupAsync();
         StateChanged += MainWindow_StateChanged;
     }
 
@@ -96,18 +98,41 @@ public partial class MainWindow : Window
         }
     }
 
-    private void Startup_Click(object sender, RoutedEventArgs e)
+    // The switch stays disabled until the scheduled-task state is known.
+    private async Task LoadStartupAsync()
     {
-        var enable = StartupSwitch.IsChecked == true;
+        StartupSwitch.IsEnabled = false;
         try
         {
-            StartupRegistration.SetEnabled(enable);
+            StartupSwitch.IsChecked = await _startup.InitializeAsync();
+        }
+        catch (Exception ex)
+        {
+            _viewModel.StatusMessage = $"Couldn't read the 'Start with Windows' setting: {ex.Message}";
+        }
+        finally
+        {
+            StartupSwitch.IsEnabled = true;
+        }
+    }
+
+    private async void Startup_Click(object sender, RoutedEventArgs e)
+    {
+        var enable = StartupSwitch.IsChecked == true;
+        StartupSwitch.IsEnabled = false;
+        try
+        {
+            await _startup.SetEnabledAsync(enable);
             _viewModel.StatusMessage = enable ? "Will start with Windows." : "Will no longer start with Windows.";
         }
         catch (Exception ex)
         {
             _viewModel.StatusMessage = $"Failed to update startup setting: {ex.Message}";
-            StartupSwitch.SetCurrentValue(ToggleButton.IsCheckedProperty, StartupRegistration.IsEnabled());
+            StartupSwitch.SetCurrentValue(ToggleButton.IsCheckedProperty, !enable);
+        }
+        finally
+        {
+            StartupSwitch.IsEnabled = true;
         }
     }
 }

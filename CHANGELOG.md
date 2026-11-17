@@ -5,6 +5,13 @@ All notable changes to this project are documented here. Format loosely follows
 
 ## [Unreleased]
 
+### Fixed
+- **Start with Windows** now actually starts the app after a reboot. It used the HKCU Run key,
+  which Windows silently skips for apps that require administrator. The setting is now a Task
+  Scheduler logon task that runs with highest privileges (no UAC prompt, works on battery, no
+  72 h time limit). An existing Run entry is moved to the task automatically on next launch, and
+  the task is repointed if the exe moved.
+
 ## [0.4.0] — 2026-11-17
 
 ### Added

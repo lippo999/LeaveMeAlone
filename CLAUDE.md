@@ -58,7 +58,11 @@ Install SDK if needed: `winget install Microsoft.DotNet.SDK.8`.
   (Ember = Block, Signal = Unblock, neutral = Logs) and shared styles read them via DynamicResource.
 - **`AppLog`** (Services): in-memory ring + daily files in `%APPDATA%\LeaveMeAlone\logs`. View
   models log every `StatusMessage` (errors with details); `ProcessRunner` logs every command.
-- **`Platform.cs`** (Services): elevation helpers + `StartupRegistration` (HKCU Run key).
+- **`Platform.cs`** (Services): elevation helpers.
+- **`StartupRegistration`** (Services): "Start with Windows" = a Task Scheduler logon task under
+  `\LeaveMeAlone\` with *Run with highest privileges*. Never the HKCU Run key: Windows silently
+  skips Run entries that need elevation, and the app is `requireAdministrator`. Old Run entries are
+  migrated to the task on launch.
 - **Updates** (Services/Update): only the published single-file exe updates itself. Restart order
   matters: `App.RestartInto` → `Shutdown()` → `OnExit` releases relays + hosts lines → *then*
   starts the new exe with `--updated-from <pid>`, which waits for the old process to exit.
@@ -84,7 +88,9 @@ src/LeaveMeAlone/
   Services/BundleStore.cs            IBundleStore + JsonBundleStore
   Services/BundleManager.cs          orchestration + reconciliation + import/export
   Services/CommonLaunchers.cs        quick-add launcher presets (detected by install path)
-  Services/Platform.cs               elevation + StartupRegistration
+  Services/Platform.cs               elevation helpers
+  Services/StartupRegistration.cs    start-at-sign-in scheduled task (+ Run-key migration)
+  Services/PowerShellScript.cs       shared powershell.exe -Command runner/quoting
   Services/QuickBlock.cs             maps detected launchers ↔ bundles for the Quick block switches
   Services/AppLog.cs                 activity log (memory + daily files)
   Services/Update/                   self-update from GitHub Releases (latest stable v* tag):
