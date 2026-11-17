@@ -111,6 +111,28 @@
                         </ItemsControl.ItemTemplate>
                     </ItemsControl>
 
+                    <!-- Scan & fix: finds blocked Steam servers the presets don't list yet -->
+                    <Border CornerRadius="14" Padding="18,14" Margin="0,0,0,10"
+                            Background="{StaticResource Surface}" BorderBrush="{StaticResource Line}" BorderThickness="1">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <StackPanel Margin="0,0,12,0" VerticalAlignment="Center">
+                                <TextBlock Text="Steam still not loading?" Style="{StaticResource H2}"/>
+                                <TextBlock Style="{StaticResource Muted}" TextWrapping="Wrap" Margin="0,3,0,0"
+                                           Text="Open the broken Steam page first, then scan. Looks at Steam's logs, its store pages and Windows' DNS cache for blocked Steam servers and lets you fix them. Only Steam domains are ever touched."/>
+                                <TextBlock Text="{Binding ScanNote}" Style="{StaticResource Muted}" Foreground="{DynamicResource Accent}"
+                                           TextWrapping="Wrap" Margin="0,6,0,0"
+                                           Visibility="{Binding HasScanNote, Converter={StaticResource BoolToVis}}"/>
+                            </StackPanel>
+                            <Button Grid.Column="1" Content="Scan &amp; fix" Click="ScanSteam_Click" Style="{StaticResource BtnPrimary}"
+                                    VerticalAlignment="Center" ToolTip="Find blocked Steam servers and reroute them"
+                                    IsEnabled="{Binding CanScan}"/>
+                        </Grid>
+                    </Border>
+
                     <!-- How it works -->
                     <Border CornerRadius="14" Padding="18,14" Margin="0,6,0,0"
                             Background="Transparent" BorderBrush="{StaticResource Line}" BorderThickness="1">

@@ -101,6 +101,8 @@ src/LeaveMeAlone/
     ConnectivityProbe.cs               TCP latency + TLS handshake probe, ClientHelloFragmentingStream
     TlsFragmenter.cs                   splits ClientHello into 2 TLS records through the SNI
     DomainDiagnoser.cs                 classification + IP ranking
+    Scan/                              Steam-only "Scan & fix": SteamDomains allowlist, IDomainSource
+                                       (DNS cache / Steam logs / store pages), SteamScanner
     HostsFile.cs                       managed hosts block (exact-restore) + Windows hosts IO + flushdns
     SniRelay.cs                        loopback relay (127.77.0.x:443/80) used for SNI-filtered domains
     UnblockManager.cs / UnblockStore.cs  orchestration (relay → hosts → store, with rollback) + unblocked.json

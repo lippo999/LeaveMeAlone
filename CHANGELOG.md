@@ -5,6 +5,13 @@ All notable changes to this project are documented here. Format loosely follows
 
 ## [Unreleased]
 
+### Added
+- **Steam "Scan & fix"** (Unblock → Quick): finds blocked Steam servers the presets don't list yet —
+  from the Windows DNS cache (names answered with a bogus address), Steam's own logs and the live
+  store/community pages — diagnoses them and lets the user tick which to unblock. Strictly Steam-only:
+  every candidate must pass the `SteamDomains` allowlist, so other sites are never touched. Findings
+  are logged with their source so they can be added to the presets.
+
 ## [0.3.1] — 2026-11-17
 
 ### Added

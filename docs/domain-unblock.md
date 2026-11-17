@@ -51,6 +51,7 @@ Mở bằng nút **Unblock domains** ở header cửa sổ chính.
 | **Unblock** | App tự chọn cách mở phù hợp với kiểu chặn vừa phát hiện. |
 | **Quick: Steam** | Chẩn đoán 44 tên miền web của Steam (store, community, chat, workshop, và tài nguyên tĩnh trên cả 3 CDN `*.akamai/fastly/cloudflare.steamstatic.com`), chỉ mở những tên miền thật sự bị chặn. |
 | **Quick: Steam downloads** | Server tải game (`*.steamcontent.com` gần VN) + máy chủ cập nhật Steam client (`client-update.*`). |
+| **Scan & fix** (Steam) | Tìm server Steam bị chặn mà preset chưa có (xem mục 5.4), cho user tick chọn rồi mới mở. |
 | Danh sách **Unblocked now** | Tên miền nào đang mở, bằng cách nào (`DNS PIN` / `SNI RELAY`), qua IP nào, relay còn chạy không. |
 | **Remove** / **Remove all** | Gỡ một hoặc tất cả; trả hệ thống về như cũ. |
 
@@ -235,6 +236,26 @@ RFC 8446 §5.1 cho phép một handshake message trải trên nhiều record, n�
 thường. DPI chỉ xét từng record thì không bao giờ thấy đủ tên miền. Test tích hợp cho thấy chính
 bộ đọc SNI phía server của .NET cũng đọc sai tên trong trường hợp này (nó chỉ xét record đầu),
 trong khi SChannel vẫn hoàn tất handshake. Đó đúng là điểm mù mà DPI của nhà mạng gặp phải.
+
+### 5.4. Scan & fix cho Steam (`Services/Unblock/Scan/`)
+
+Preset là danh sách cố định; khi Steam đổi CDN (ví dụ chuyển sang `*.fastly.steamstatic.com`) thì preset
+thiếu host. Nút **Scan & fix** tìm host lúc chạy, không cần build lại:
+
+| Nguồn (`IDomainSource`) | Lấy gì |
+|---|---|
+| `DnsCacheSource` | `Get-DnsClientCache`: tên nào vừa được DNS trả về địa chỉ bogon (`127.0.0.1`, `0.0.0.0`, `::1`…). Cần quyền admin. Đọc **trước tiên**, vì mỗi lần mở chặn app chạy `ipconfig /flushdns`. |
+| `SteamLogSource` | Host xuất hiện trong `Steam\logs\*.txt` (2 MB cuối mỗi file, mở chia sẻ vì Steam đang giữ file). Thư mục Steam lấy từ `HKCU\Software\Valve\Steam\SteamPath`. |
+| `SteamPageSource` | Host được trang chủ store và community tham chiếu (HTML/JSON). |
+
+`SteamScanner` gộp các nguồn với danh sách preset, **lọc qua `SteamDomains.IsSteam`** (chỉ các zone của
+Valve và `steam*.akamaihd.net` / `steam*.akamaized.net`), bỏ domain đang được mở, chẩn đoán song song
+(tối đa 6) và chỉ trả về domain bị chặn DNS/SNI có IP dùng được. Không thay đổi gì cho đến khi user xác
+nhận trong hộp thoại. Kết quả (kèm nguồn) được ghi vào log để bổ sung preset sau. Domain mở qua scan
+nằm trong danh sách *Unblocked now* (tab Custom); tắt công tắc preset không gỡ chúng.
+
+Phạm vi cố ý **chỉ Steam**: DNS cache chứa mọi trang user truy cập, nên không có allowlist thì scan có
+thể đổi đường cho cả những trang không liên quan.
 
 ---
 

@@ -40,6 +40,12 @@ public partial class UnblockView : UserControl
 
     private void Details_Click(object sender, RoutedEventArgs e) => CustomTab.IsChecked = true;
 
+    private async void ScanSteam_Click(object sender, RoutedEventArgs e)
+    {
+        if (ViewModel != null)
+            await ViewModel.ScanSteamAsync(findings => Dialogs.PromptScanFindings(Owner, findings));
+    }
+
     // ----- Custom -----
 
     private async void Diagnose_Click(object sender, RoutedEventArgs e)
