@@ -79,13 +79,13 @@ public static class UnblockPresets
     /// <summary>Every preset, in the order the Quick screen shows them.</summary>
     public static readonly IReadOnlyList<UnblockPreset> All = new[] { Steam, SteamDownloads };
 
-    private static readonly string[] StaticAssetKinds = { "store", "community", "shared", "cdn", "avatars", "clan", "video" };
-    private static readonly string[] StaticAssetCdns = { "akamai", "fastly", "cloudflare" };
-
-    /// <summary><c>{store,community,…}.{akamai,fastly,cloudflare}.steamstatic.com</c></summary>
+    /// <summary>
+    /// <c>{store,community,…}.{akamai,fastly,cloudflare}.steamstatic.com</c>. The lists are inline, not
+    /// static fields: the presets above are initialized first, when later fields are still null.
+    /// </summary>
     private static IEnumerable<string> StaticAssetHosts() =>
-        from cdn in StaticAssetCdns
-        from kind in StaticAssetKinds
+        from cdn in new[] { "akamai", "fastly", "cloudflare" }
+        from kind in new[] { "store", "community", "shared", "cdn", "avatars", "clan", "video" }
         select $"{kind}.{cdn}.steamstatic.com";
 
     private static IEnumerable<string> CacheHosts(string region, int count) =>
